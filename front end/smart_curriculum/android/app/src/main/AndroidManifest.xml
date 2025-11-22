@@ -9,8 +9,7 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <!-- Android 12+ Nearby Devices permissions -->
-    <uses-permission
-        android:name="android.permission.BLUETOOTH_SCAN"
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
@@ -25,9 +24,6 @@
     <uses-feature
         android:name="android.hardware.bluetooth_le"
         android:required="false" />
-
-    <!-- CAMERA permission -->
-    <uses-permission android:name="android.permission.CAMERA" />
 
     <!-- ========================= -->
     <!-- APPLICATION SECTION -->
@@ -59,17 +55,6 @@
             </intent-filter>
 
         </activity>
-
-        <!-- FileProvider -->
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.provider"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/provider_paths" />
-        </provider>
 
         <meta-data
             android:name="flutterEmbedding"
