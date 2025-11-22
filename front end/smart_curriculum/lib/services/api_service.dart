@@ -12,31 +12,58 @@ class ApiService {
   static String? loggedInStudentName;
 
   // ---------------------------------------------------------
-  // STUDENT LOGIN
+  // STUDENT LOGIN (Improved)
   // ---------------------------------------------------------
   static Future<bool> studentLogin(String username, String password) async {
     final url = Uri.parse("$springUrl/auth/student/login");
+
     try {
       final res = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"username": username, "password": password}),
+        body: jsonEncode({
+          "username": username.trim(),
+          "password": password.trim(),
+        }),
       );
 
-      final ok = res.statusCode == 200 &&
-          res.body.contains("Student login successful");
+      print("🔹 Login response code: ${res.statusCode}");
+      print("🔹 Login response body: ${res.body}");
+
+      if (res.statusCode != 200) {
+        print("❌ HTTP error ${res.statusCode}");
+        return false;
+      }
+
+      // Handle both plain text and JSON responses
+      String raw = res.body.trim();
+      bool ok = false;
+
+      try {
+        final json = jsonDecode(raw);
+        if (json is Map && json["ok"] == true) {
+          ok = true;
+        } else if (json["message"]?.toString().toLowerCase().contains("login successful") == true) {
+          ok = true;
+        }
+      } catch (_) {
+        // If not JSON, handle as plain text
+        if (raw.toLowerCase().contains("student login successful")) {
+          ok = true;
+        }
+      }
 
       if (ok) {
         loggedInUsername = username;
-
         final profile = await getStudentProfile();
         if (profile != null && profile["name"] != null) {
           loggedInStudentName = profile["name"].toString();
         }
       }
+
       return ok;
     } catch (e) {
-      print("studentLogin error: $e");
+      print("❌ studentLogin error: $e");
       return false;
     }
   }
@@ -47,18 +74,18 @@ class ApiService {
   static Future<Map<String, dynamic>?> getStudentProfile() async {
     if (loggedInUsername == null) return null;
 
-    final url =
-        Uri.parse("$springUrl/student/me?username=$loggedInUsername");
+    final url = Uri.parse("$springUrl/student/me?username=$loggedInUsername");
 
     try {
       final res = await http.get(url);
+      print("🔹 Profile response: ${res.statusCode} -> ${res.body}");
 
       if (res.statusCode == 200 && res.body.isNotEmpty) {
         return jsonDecode(res.body);
       }
       return null;
     } catch (e) {
-      print("getStudentProfile error: $e");
+      print("❌ getStudentProfile error: $e");
       return null;
     }
   }
@@ -75,16 +102,14 @@ class ApiService {
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "studentName": studentName,
-          "status": "PRESENT"     // teacherName removed (Option A)
+          "status": "PRESENT"
         }),
       );
 
-      print(
-          "markAttendance response: ${res.statusCode} -> ${res.body}");
-
+      print("🟢 markAttendance response: ${res.statusCode} -> ${res.body}");
       return res.statusCode == 200;
     } catch (e) {
-      print("markAttendance error: $e");
+      print("❌ markAttendance error: $e");
       return false;
     }
   }
@@ -110,8 +135,7 @@ class ApiService {
   // ---------------------------------------------------------
   // FLASK — Register Face
   // ---------------------------------------------------------
-  static Future<Map<String, dynamic>> registerFace(
-      String studentName) async {
+  static Future<Map<String, dynamic>> registerFace(String studentName) async {
     final url = Uri.parse("$faceUrl/face/register-frame");
     try {
       final res = await http.post(
@@ -131,7 +155,6 @@ class ApiService {
   // ---------------------------------------------------------
   static Future<Map<String, dynamic>> recognizeFace() async {
     final url = Uri.parse("$faceUrl/face/recognize");
-
     try {
       final res = await http.post(url);
       return jsonDecode(res.body);

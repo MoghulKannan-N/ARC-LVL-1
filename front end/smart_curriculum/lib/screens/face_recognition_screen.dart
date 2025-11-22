@@ -1,9 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:camera/camera.dart';
 import 'package:http/http.dart' as http;
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../services/api_service.dart';
+import 'package:flutter/foundation.dart';
 
 class FaceRecognitionScreen extends StatefulWidget {
   const FaceRecognitionScreen({super.key});
@@ -13,188 +15,284 @@ class FaceRecognitionScreen extends StatefulWidget {
 }
 
 class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
-  final ImagePicker picker = ImagePicker();
-  String status = "Tap a button to begin.";
-  bool busy = false;
+  CameraController? _controller;
+  bool _isBusy = false;
+  bool _showRegister = false;
+  XFile? _capturedImage;
 
-  List<String> actions = [];
+  String _status = "Initializing camera...";
+  String _result = "";
 
-  Future<List<String>> _fetchActions() async {
-    try {
-      final res = await http.get(Uri.parse("${ApiService.faceUrl}/face/get-actions"));
-      if (res.statusCode == 200) {
-        final j = jsonDecode(res.body);
-        if (j["ok"] == true && j["actions"] is List) {
-          return List<String>.from(j["actions"]);
-        }
-      }
-    } catch (e) {
-      debugPrint("get-actions error: $e");
-    }
-    return ["turn_head_left", "move_eyes_right"]; // fallback
+  late FaceDetector _faceDetector;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeCamera();
+    _faceDetector = FaceDetector(
+      options: FaceDetectorOptions(
+        enableClassification: true,
+        enableTracking: true,
+      ),
+    );
   }
 
-  Future<void> registerMobile() async {
-    final name = ApiService.loggedInStudentName ?? ApiService.loggedInUsername ?? "Unknown";
-    final shot = await picker.pickImage(source: ImageSource.camera);
-    if (shot == null) return;
-
-    setState(() {
-      busy = true;
-      status = "Uploading your selfie to register...";
-    });
-
-    final req = http.MultipartRequest(
-      "POST",
-      Uri.parse("${ApiService.faceUrl}/face/register-mobile"),
+  Future<void> _initializeCamera() async {
+    final cameras = await availableCameras();
+    final frontCamera = cameras.firstWhere(
+      (cam) => cam.lensDirection == CameraLensDirection.front,
     );
-    req.fields["name"] = name;
-    req.files.add(await http.MultipartFile.fromPath("file", shot.path));
 
-    final resp = await req.send();
-    final body = await resp.stream.bytesToString();
+    _controller = CameraController(frontCamera, ResolutionPreset.medium,
+        enableAudio: false);
+    await _controller!.initialize();
 
-    try {
-      final Map<String, dynamic> j = jsonDecode(body);
-      if (j["ok"] == true) {
-        setState(() => status = "✅ Registered successfully for $name");
-      } else {
-        setState(() => status = "❌ Register failed: ${j["error"] ?? "unknown"}");
-      }
-    } catch (e) {
-      setState(() => status = "❌ Register failed: $e");
-    }
-
-    setState(() => busy = false);
+    setState(() => _status = "Camera ready. Press Capture.");
   }
 
-  Future<void> livenessAndRecognize() async {
+  /// Converts a [CameraImage] to [InputImage] for ML Kit
+  InputImage _convertCameraImage(CameraImage image) {
+    final WriteBuffer allBytes = WriteBuffer();
+    for (final Plane plane in image.planes) {
+      allBytes.putUint8List(plane.bytes);
+    }
+    final bytes = allBytes.done().buffer.asUint8List();
+
+    final Size imageSize =
+        Size(image.width.toDouble(), image.height.toDouble());
+
+    final InputImageRotation rotation = InputImageRotation.rotation0deg;
+
+    final InputImageFormat format =
+        InputImageFormatValue.fromRawValue(image.format.raw) ??
+            InputImageFormat.nv21;
+
+    final metadata = InputImageMetadata(
+      size: imageSize,
+      rotation: rotation,
+      format: format,
+      bytesPerRow: image.planes.first.bytesPerRow,
+    );
+
+    return InputImage.fromBytes(bytes: bytes, metadata: metadata);
+  }
+
+  Future<void> _captureAndRecognize() async {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+
     setState(() {
-      busy = true;
-      status = "Getting actions for liveness...";
+      _isBusy = true;
+      _showRegister = false;
+      _status = "Capturing face...";
     });
 
-    actions = await _fetchActions();
-    if (actions.length != 2) {
-      actions = ["turn_head_left", "move_eyes_right"];
-    }
-
-    // Take two selfies: before and after performing actions
-    setState(() => status = "Action 1: ${actions[0]}\nTake FIRST selfie (before).");
-    final first = await picker.pickImage(source: ImageSource.camera);
-    if (first == null) {
-      setState(() {
-        busy = false;
-        status = "Cancelled.";
-      });
-      return;
-    }
-
-    setState(() => status = "Action 2: ${actions[1]}\nNow perform the action and take SECOND selfie.");
-    final second = await picker.pickImage(source: ImageSource.camera);
-    if (second == null) {
-      setState(() {
-        busy = false;
-        status = "Cancelled.";
-      });
-      return;
-    }
-
-    setState(() => status = "Verifying liveness & recognition...");
-
-    final req = http.MultipartRequest(
-      "POST",
-      Uri.parse("${ApiService.faceUrl}/face/recognize-two-step"),
-    );
-    req.files.add(await http.MultipartFile.fromPath("file1", first.path));
-    req.files.add(await http.MultipartFile.fromPath("file2", second.path));
-    req.fields["actions[]"] = actions[0];
-    req.fields["actions[]"] = actions[1];
-
-    final resp = await req.send();
-    final body = await resp.stream.bytesToString();
-
     try {
-      final Map<String, dynamic> j = jsonDecode(body);
+      final file = await _controller!.takePicture();
+      _capturedImage = file;
 
-      final live = j["liveness"] == true;
-      final rec = j["recognized"] == true;
-      final name = (j["name"] ?? "") as String;
-      final score = (j["score"] ?? 0).toString();
+      final inputImage = InputImage.fromFilePath(file.path);
+      final faces = await _faceDetector.processImage(inputImage);
 
-      if (!live) {
-        setState(() => status = "❌ Liveness failed. Please try again clearly.");
-        busy = false;
+      if (faces.isEmpty) {
+        setState(() {
+          _isBusy = false;
+          _status = "❌ No face detected. Try again with better lighting.";
+        });
         return;
       }
 
-      if (!rec) {
-        setState(() => status = "⚠️ Liveness passed but face not recognized.");
-        busy = false;
+      setState(() => _status = "🔍 Sending for recognition...");
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse("${ApiService.faceUrl}/face/recognize"),
+      );
+      request.files.add(await http.MultipartFile.fromPath('file', file.path));
+
+      final response = await request.send();
+      final body = await response.stream.bytesToString();
+      final data = jsonDecode(body);
+
+      if (response.statusCode != 200) {
+        setState(() {
+          _status = "⚠️ Server error";
+          _result = data.toString();
+        });
         return;
       }
 
-      final expected = ApiService.loggedInStudentName ?? ApiService.loggedInUsername ?? "";
-      if (expected.isNotEmpty && expected != name) {
-        setState(() => status = "❌ Recognized as $name, but logged-in user is $expected.");
-        busy = false;
+      final recognized = data["recognized"] == true;
+      final name = data["name"] ?? "Unknown";
+      final score = (data["score"] ?? 0.0).toStringAsFixed(3);
+
+      if (!recognized) {
+        setState(() {
+          _status = "⚠️ Face not recognized.";
+          _result = "Score: $score";
+          _showRegister = true;
+        });
         return;
       }
 
-      setState(() => status = "✅ Liveness passed & recognized: $name (score: $score) — marking attendance...");
+      setState(() {
+        _status = "✅ Recognized as $name";
+        _result = "Score: $score";
+      });
 
       final ok = await ApiService.markAttendance(name);
-      setState(() => status = ok
-          ? "✅ Attendance marked for $name."
-          : "⚠️ Recognition OK, attendance failed.");
-
+      setState(() {
+        _result += ok
+            ? "\n✅ Attendance marked for $name"
+            : "\n⚠️ Attendance marking failed";
+      });
     } catch (e) {
-      setState(() => status = "❌ Error: $e");
+      setState(() {
+        _status = "❌ Error occurred";
+        _result = e.toString();
+      });
+    } finally {
+      setState(() => _isBusy = false);
     }
+  }
 
-    setState(() => busy = false);
+  Future<void> _registerFace() async {
+    if (_capturedImage == null) return;
+
+    final nameController = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Register Face"),
+        content: TextField(
+          controller: nameController,
+          decoration: const InputDecoration(labelText: "Enter your name"),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final name = nameController.text.trim();
+              if (name.isEmpty) return;
+
+              setState(() {
+                _status = "🧠 Registering face...";
+                _isBusy = true;
+              });
+
+              try {
+                final request = http.MultipartRequest(
+                  'POST',
+                  Uri.parse("${ApiService.faceUrl}/face/register-mobile"),
+                );
+                request.files.add(await http.MultipartFile.fromPath(
+                    'file', _capturedImage!.path));
+                request.fields['name'] = name;
+
+                final response = await request.send();
+                final respBody = await response.stream.bytesToString();
+                final data = jsonDecode(respBody);
+
+                if (data["ok"] == true) {
+                  setState(() {
+                    _status = "✅ Face registered successfully!";
+                    _result = "Welcome, $name!";
+                    _showRegister = false;
+                  });
+                } else {
+                  setState(() {
+                    _status = "❌ Registration failed";
+                    _result = data["error"] ?? "Unknown error";
+                  });
+                }
+              } catch (e) {
+                setState(() {
+                  _status = "❌ Error during registration";
+                  _result = e.toString();
+                });
+              } finally {
+                setState(() => _isBusy = false);
+              }
+            },
+            child: const Text("Register"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    _faceDetector.close();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Liveness + Face Recognition"),
+        title: const Text("Face Recognition"),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(22.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.face_6, size: 120, color: Colors.blue),
-              const SizedBox(height: 24),
-              Text(status, textAlign: TextAlign.center, style: const TextStyle(fontSize: 16)),
-              const SizedBox(height: 36),
-              ElevatedButton.icon(
-                onPressed: busy ? null : registerMobile,
-                icon: const Icon(Icons.person_add_alt_1),
-                label: const Text("Register My Face (Mobile)"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  minimumSize: const Size(250, 52),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: busy ? null : livenessAndRecognize,
-                icon: const Icon(Icons.verified_user),
-                label: const Text("Verify Liveness + Recognize"),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  minimumSize: const Size(250, 52),
-                ),
-              ),
-            ],
+      body: Column(
+        children: [
+          Expanded(
+            child: _controller == null || !_controller!.value.isInitialized
+                ? const Center(child: CircularProgressIndicator())
+                : CameraPreview(_controller!),
           ),
-        ),
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Colors.black87,
+            width: double.infinity,
+            child: Column(
+              children: [
+                Text(
+                  _status,
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _result,
+                  style: const TextStyle(color: Colors.greenAccent),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: _isBusy ? null : _captureAndRecognize,
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text("Capture & Recognize"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                  ),
+                ),
+                if (_showRegister)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: ElevatedButton.icon(
+                      onPressed: _isBusy ? null : _registerFace,
+                      icon: const Icon(Icons.person_add),
+                      label: const Text("Register Face"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
