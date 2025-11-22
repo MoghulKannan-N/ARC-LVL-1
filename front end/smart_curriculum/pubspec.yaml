@@ -1,0 +1,51 @@
+name: smart_curriculum
+description: A Smart Curriculum Activity & Attendance App
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'   # stable Dart SDK range for Flutter 3.x
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Networking
+  http: ^0.13.6
+
+  # Bluetooth for attendance sync
+  flutter_bluetooth_serial: ^0.4.0
+
+  # Camera for live photo capture
+  camera: ^0.10.5+9
+
+  # Image picker for taking selfies
+  image_picker: ^1.1.2
+
+  # Optional MJPEG viewer (keep if using stream preview)
+  flutter_mjpeg: ^2.0.4
+
+  # JSON handling & utility
+  collection: ^1.18.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo.png"
+  adaptive_icon_foreground: "assets/logo.png"
+  adaptive_icon_background: "#ffffff"
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/photo.jpg
+    - assets/logo.png

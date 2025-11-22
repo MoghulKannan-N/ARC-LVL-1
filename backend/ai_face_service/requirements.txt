@@ -1,0 +1,6 @@
+flask
+psycopg2-binary
+numpy
+mediapipe
+opencv-python
+onnxruntime   # important!
