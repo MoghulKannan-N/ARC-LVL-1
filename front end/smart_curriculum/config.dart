@@ -3,7 +3,7 @@
 /// Global configuration file for backend endpoints
 
 // Base IP address for both Spring Boot and Flask servers
-const String flask = "https://large-donuts-chew.loca.lt";
+const String flask = "https://presence-surprising-graph-cartoon.trycloudflare.com";
 
 
-const String sb = "https://honest-trams-slide.loca.lt";
+const String sb = "hhttps://each-polymer-organizing-wine.trycloudflare.com";
