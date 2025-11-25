@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:smart_curriculum/utils/constants.dart';
 import 'package:flutter/services.dart';
-import 'face_recognition_screen.dart';  // keep your original
+import 'face_recognition_screen.dart';
 
 class BluetoothScreen extends StatelessWidget {
   const BluetoothScreen({super.key});
 
+  // 🔧 Enable or disable debug mode here
+  static const bool debugMode = true; // <-- Set this to false for production
+
   static const MethodChannel _channel = MethodChannel("student_ble");
 
+  // Function to scan for teacher beacon via native Kotlin
   Future<bool> _scanForTeacher() async {
     try {
       final result = await _channel.invokeMethod("scanForTeacher");
@@ -17,8 +21,21 @@ class BluetoothScreen extends StatelessWidget {
     }
   }
 
+  // Handle Bluetooth tap (with debug override)
   Future<void> _handleBluetoothTap(BuildContext context) async {
-    // Start scanning using Kotlin
+    // ✅ If debug mode is ON, skip Bluetooth check
+    if (debugMode) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("⚙️ Debug mode: Skipping Bluetooth check")),
+      );
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const FaceRecognitionScreen()),
+      );
+      return;
+    }
+
+    // 🟦 Normal mode: perform Bluetooth scan
     bool found = await _scanForTeacher();
 
     if (!found) {
@@ -28,7 +45,7 @@ class BluetoothScreen extends StatelessWidget {
       return;
     }
 
-    // On success → navigate to face recognition
+    // 🟩 On success → navigate to face recognition
     Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const FaceRecognitionScreen()),
@@ -116,6 +133,19 @@ class BluetoothScreen extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
+
+          // Optional: Show debug indicator on screen
+          if (debugMode) ...[
+            const SizedBox(height: 30),
+            const Text(
+              "⚠️ DEBUG MODE ENABLED — Bluetooth check skipped",
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ],
       ),
     );
