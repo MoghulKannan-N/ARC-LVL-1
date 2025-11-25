@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config.dart';
 
 class ApiService {
-  static const String baseUrl = "http://192.168.137.1:8080/api";
+  static const String baseUrl = "$sb/api";
 
   // Store logged-in teacher username + name
   static String? loggedInTeacherUsername;
