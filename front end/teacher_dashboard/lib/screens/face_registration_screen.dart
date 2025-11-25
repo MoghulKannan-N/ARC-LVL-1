@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_mjpeg/flutter_mjpeg.dart';
+import '../config.dart';
 
 class FaceRegistrationScreen extends StatefulWidget {
   final String studentName;
@@ -20,7 +21,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   // CAPTURE FRAME FROM FLUTTER UI
   // -----------------------------
   Future<void> captureFrame() async {
-    final url = Uri.parse("http://192.168.137.1:5000/face/capture-frame");
+    final url = Uri.parse("$flask/face/capture-frame");
 
     try {
       final response = await http.post(url);
@@ -42,7 +43,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   Future<void> registerFace() async {
     setState(() => registering = true);
 
-    final url = Uri.parse("http://192.168.137.1:5000/face/register-frame");
+    final url = Uri.parse("$flask/face/register-frame");
 
     try {
       final response = await http.post(
@@ -109,7 +110,7 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
                   height: 320,
                   color: Colors.black12,
                   child: Mjpeg(
-                    stream: "http://192.168.137.1:5000/face/stream",
+                    stream: "$flask/face/stream",
                     isLive: true,
                     fit: BoxFit.cover,
                     timeout: const Duration(seconds: 3),

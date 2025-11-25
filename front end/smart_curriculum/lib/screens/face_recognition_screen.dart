@@ -7,6 +7,7 @@ import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../services/api_service.dart';
 import 'package:flutter/foundation.dart';
 
+
 class FaceRecognitionScreen extends StatefulWidget {
   const FaceRecognitionScreen({super.key});
 

@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../config.dart';
 
 class ApiService {
   // Spring Boot base URL
-  static const String springUrl = "http://192.168.137.1:8080/api";
+  static const String springUrl = "$sb/api";
 
   // Flask face-recognition service
-  static const String faceUrl = "http://192.168.137.1:5000";
+  static const String faceUrl = "$flask";
 
   static String? loggedInUsername;
   static String? loggedInStudentName;
