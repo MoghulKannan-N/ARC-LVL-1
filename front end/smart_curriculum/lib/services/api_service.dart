@@ -44,7 +44,11 @@ class ApiService {
         final json = jsonDecode(raw);
         if (json is Map && json["ok"] == true) {
           ok = true;
-        } else if (json["message"]?.toString().toLowerCase().contains("login successful") == true) {
+        } else if (json["message"]
+                ?.toString()
+                .toLowerCase()
+                .contains("login successful") ==
+            true) {
           ok = true;
         }
       } catch (_) {
@@ -92,7 +96,7 @@ class ApiService {
   }
 
   // ---------------------------------------------------------
-  // MARK ATTENDANCE (Student side)
+  // MARK ATTENDANCE (PRESENT)
   // ---------------------------------------------------------
   static Future<bool> markAttendance(String studentName) async {
     final url = Uri.parse("$springUrl/attendance/mark");
@@ -103,7 +107,7 @@ class ApiService {
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "studentName": studentName,
-          "status": "PRESENT"
+          "status": "PRESENT",
         }),
       );
 
@@ -116,7 +120,32 @@ class ApiService {
   }
 
   // ---------------------------------------------------------
+  // MARK ATTENDANCE (ABSENT)
+  // ---------------------------------------------------------
+  static Future<bool> markAbsent(String studentName) async {
+    final url = Uri.parse("$springUrl/attendance/mark");
+
+    try {
+      final res = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "studentName": studentName,
+          "status": "ABSENT",
+        }),
+      );
+
+      print("🟠 markAbsent response: ${res.statusCode} -> ${res.body}");
+      return res.statusCode == 200;
+    } catch (e) {
+      print("❌ markAbsent error: $e");
+      return false;
+    }
+  }
+
+  // ---------------------------------------------------------
   // FLASK — Capture frame
+  // (kept as-is, in case you use it elsewhere)
   // ---------------------------------------------------------
   static Future<bool> captureFrame() async {
     final url = Uri.parse("$faceUrl/face/capture-frame");
@@ -134,7 +163,7 @@ class ApiService {
   }
 
   // ---------------------------------------------------------
-  // FLASK — Register Face
+  // FLASK — Register Face (frame based)
   // ---------------------------------------------------------
   static Future<Map<String, dynamic>> registerFace(String studentName) async {
     final url = Uri.parse("$faceUrl/face/register-frame");
@@ -152,7 +181,7 @@ class ApiService {
   }
 
   // ---------------------------------------------------------
-  // FLASK — Recognize Face
+  // FLASK — Recognize Face (frame based, no file)
   // ---------------------------------------------------------
   static Future<Map<String, dynamic>> recognizeFace() async {
     final url = Uri.parse("$faceUrl/face/recognize");
