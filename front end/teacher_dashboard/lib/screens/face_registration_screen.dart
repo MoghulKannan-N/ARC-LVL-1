@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_mjpeg/flutter_mjpeg.dart';
@@ -16,9 +17,10 @@ class FaceRegistrationScreen extends StatefulWidget {
 class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
   bool captured = false;
   bool registering = false;
+  Uint8List? capturedImage;
 
   // -----------------------------
-  // CAPTURE FRAME FROM FLUTTER UI
+  // CAPTURE FRAME FROM FLASK CAMERA STREAM
   // -----------------------------
   Future<void> captureFrame() async {
     final url = Uri.parse("$flask/face/capture-frame");
@@ -27,40 +29,67 @@ class _FaceRegistrationScreenState extends State<FaceRegistrationScreen> {
       final response = await http.post(url);
 
       if (response.statusCode == 200) {
-        setState(() => captured = true);
-        _showMessage("Captured! Now click Register Face.");
+        final data = jsonDecode(response.body);
+        if (data["ok"] == true) {
+          setState(() => captured = true);
+          _showMessage("✅ Frame captured! Now click Register Face.");
+        } else {
+          _showMessage("⚠️ Capture failed: ${data["error"] ?? 'unknown'}");
+        }
       } else {
-        _showMessage("Capture failed.");
+        _showMessage("❌ Capture failed (${response.statusCode})");
       }
     } catch (e) {
-      _showMessage("Failed to connect to AI service.");
+      _showMessage("⚠️ Failed to connect to AI service: $e");
     }
   }
 
   // -----------------------------
-  // REGISTER THE FACE (NO POPUP)
+  // REGISTER THE FACE (NEW LOGIC)
   // -----------------------------
   Future<void> registerFace() async {
     setState(() => registering = true);
 
-    final url = Uri.parse("$flask/face/register-frame");
-
     try {
-      final response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"name": widget.studentName}),
-      );
+      // 🧠 Step 1: Read the captured temp frame image from Flask server
+      final getUrl = Uri.parse("$flask/temp_frame.jpg");
+      final getResponse = await http.get(getUrl);
 
-      final data = jsonDecode(response.body);
+      if (getResponse.statusCode != 200) {
+        _showMessage("❌ Could not fetch captured frame from Flask.");
+        setState(() => registering = false);
+        return;
+      }
 
-      if (data["ok"] == true) {
-        _showMessage("Face registered successfully!");
+      // 🧠 Step 2: Prepare multipart request to /face/register-mobile
+      final registerUrl = Uri.parse("$flask/face/register-mobile");
+      final request = http.MultipartRequest("POST", registerUrl)
+        ..fields["name"] = widget.studentName
+        ..files.add(
+          http.MultipartFile.fromBytes(
+            "file",
+            getResponse.bodyBytes,
+            filename: "${widget.studentName}.jpg",
+          ),
+        );
+
+      // 🧠 Step 3: Send request
+      final streamed = await request.send();
+      final res = await http.Response.fromStream(streamed);
+
+      // 🧠 Step 4: Handle response
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data["ok"] == true) {
+          _showMessage("✅ Face registered successfully!");
+        } else {
+          _showMessage("⚠️ Registration failed: ${data["error"] ?? 'unknown'}");
+        }
       } else {
-        _showMessage("Registration failed: ${data["error"]}");
+        _showMessage("❌ Registration failed (${res.statusCode})");
       }
     } catch (e) {
-      _showMessage("Failed to register face.");
+      _showMessage("⚠️ Network error: $e");
     }
 
     setState(() => registering = false);
