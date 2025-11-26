@@ -1,12 +1,9 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import '../services/api_service.dart';
-import 'package:flutter/foundation.dart';
-
 
 class FaceRecognitionScreen extends StatefulWidget {
   const FaceRecognitionScreen({super.key});
@@ -18,8 +15,6 @@ class FaceRecognitionScreen extends StatefulWidget {
 class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
   CameraController? _controller;
   bool _isBusy = false;
-  bool _showRegister = false;
-  XFile? _capturedImage;
 
   String _status = "Initializing camera...";
   String _result = "";
@@ -44,38 +39,14 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
       (cam) => cam.lensDirection == CameraLensDirection.front,
     );
 
-    _controller = CameraController(frontCamera, ResolutionPreset.medium,
-        enableAudio: false);
+    _controller = CameraController(
+      frontCamera,
+      ResolutionPreset.medium,
+      enableAudio: false,
+    );
     await _controller!.initialize();
 
     setState(() => _status = "Camera ready. Press Capture.");
-  }
-
-  /// Converts a [CameraImage] to [InputImage] for ML Kit
-  InputImage _convertCameraImage(CameraImage image) {
-    final WriteBuffer allBytes = WriteBuffer();
-    for (final Plane plane in image.planes) {
-      allBytes.putUint8List(plane.bytes);
-    }
-    final bytes = allBytes.done().buffer.asUint8List();
-
-    final Size imageSize =
-        Size(image.width.toDouble(), image.height.toDouble());
-
-    final InputImageRotation rotation = InputImageRotation.rotation0deg;
-
-    final InputImageFormat format =
-        InputImageFormatValue.fromRawValue(image.format.raw) ??
-            InputImageFormat.nv21;
-
-    final metadata = InputImageMetadata(
-      size: imageSize,
-      rotation: rotation,
-      format: format,
-      bytesPerRow: image.planes.first.bytesPerRow,
-    );
-
-    return InputImage.fromBytes(bytes: bytes, metadata: metadata);
   }
 
   Future<void> _captureAndRecognize() async {
@@ -83,14 +54,14 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
 
     setState(() {
       _isBusy = true;
-      _showRegister = false;
       _status = "Capturing face...";
+      _result = "";
     });
 
     try {
       final file = await _controller!.takePicture();
-      _capturedImage = file;
 
+      // Local ML face detection (to avoid sending empty frames)
       final inputImage = InputImage.fromFilePath(file.path);
       final faces = await _faceDetector.processImage(inputImage);
 
@@ -102,12 +73,27 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
         return;
       }
 
+      // Get logged-in student name from ApiService
+      final studentName = ApiService.loggedInStudentName;
+      if (studentName == null || studentName.trim().isEmpty) {
+        setState(() {
+          _isBusy = false;
+          _status = "❌ Error: No logged-in student found.";
+          _result = "Please log in again.";
+        });
+        return;
+      }
+
       setState(() => _status = "🔍 Sending for recognition...");
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse("${ApiService.faceUrl}/face/recognize"),
+
+      final uri = Uri.parse(
+        "${ApiService.faceUrl}/face/recognize?name=${Uri.encodeQueryComponent(studentName)}",
       );
-      request.files.add(await http.MultipartFile.fromPath('file', file.path));
+
+      final request = http.MultipartRequest('POST', uri);
+      request.files.add(
+        await http.MultipartFile.fromPath('file', file.path),
+      );
 
       final response = await request.send();
       final body = await response.stream.bytesToString();
@@ -121,30 +107,44 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
         return;
       }
 
-      final recognized = data["recognized"] == true;
-      final name = data["name"] ?? "Unknown";
-      final score = (data["score"] ?? 0.0).toStringAsFixed(3);
-
-      if (!recognized) {
+      if (data["ok"] != true) {
         setState(() {
-          _status = "⚠️ Face not recognized.";
-          _result = "Score: $score";
-          _showRegister = true;
+          _status = "⚠️ Face service error";
+          _result = data.toString();
         });
         return;
       }
 
-      setState(() {
-        _status = "✅ Recognized as $name";
-        _result = "Score: $score";
-      });
+      final recognized = data["recognized"] == true;
+      final score = (data["score"] ?? 0.0).toStringAsFixed(3);
 
-      final ok = await ApiService.markAttendance(name);
-      setState(() {
-        _result += ok
-            ? "\n✅ Attendance marked for $name"
-            : "\n⚠️ Attendance marking failed";
-      });
+      if (recognized) {
+        // ✅ Matched: mark PRESENT
+        setState(() {
+          _status = "✅ Face verified as $studentName";
+          _result = "Score: $score\nMarking PRESENT...";
+        });
+
+        final ok = await ApiService.markAttendance(studentName);
+        setState(() {
+          _result += ok
+              ? "\n🟢 Attendance marked PRESENT"
+              : "\n⚠️ Failed to update attendance";
+        });
+      } else {
+        // ❌ Not matched: mark ABSENT
+        setState(() {
+          _status = "❌ Face does NOT match $studentName";
+          _result = "Score: $score\nMarking ABSENT...";
+        });
+
+        final ok = await ApiService.markAbsent(studentName);
+        setState(() {
+          _result += ok
+              ? "\n🟠 Attendance marked ABSENT"
+              : "\n⚠️ Failed to update attendance";
+        });
+      }
     } catch (e) {
       setState(() {
         _status = "❌ Error occurred";
@@ -153,76 +153,6 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
     } finally {
       setState(() => _isBusy = false);
     }
-  }
-
-  Future<void> _registerFace() async {
-    if (_capturedImage == null) return;
-
-    final nameController = TextEditingController();
-
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Register Face"),
-        content: TextField(
-          controller: nameController,
-          decoration: const InputDecoration(labelText: "Enter your name"),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final name = nameController.text.trim();
-              if (name.isEmpty) return;
-
-              setState(() {
-                _status = "🧠 Registering face...";
-                _isBusy = true;
-              });
-
-              try {
-                final request = http.MultipartRequest(
-                  'POST',
-                  Uri.parse("${ApiService.faceUrl}/face/register-mobile"),
-                );
-                request.files.add(await http.MultipartFile.fromPath(
-                    'file', _capturedImage!.path));
-                request.fields['name'] = name;
-
-                final response = await request.send();
-                final respBody = await response.stream.bytesToString();
-                final data = jsonDecode(respBody);
-
-                if (data["ok"] == true) {
-                  setState(() {
-                    _status = "✅ Face registered successfully!";
-                    _result = "Welcome, $name!";
-                    _showRegister = false;
-                  });
-                } else {
-                  setState(() {
-                    _status = "❌ Registration failed";
-                    _result = data["error"] ?? "Unknown error";
-                  });
-                }
-              } catch (e) {
-                setState(() {
-                  _status = "❌ Error during registration";
-                  _result = e.toString();
-                });
-              } finally {
-                setState(() => _isBusy = false);
-              }
-            },
-            child: const Text("Register"),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -256,7 +186,9 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
                 Text(
                   _status,
                   style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold),
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
@@ -269,27 +201,15 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
                 ElevatedButton.icon(
                   onPressed: _isBusy ? null : _captureAndRecognize,
                   icon: const Icon(Icons.camera_alt),
-                  label: const Text("Capture & Recognize"),
+                  label: const Text("Capture & Verify"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
-                  ),
-                ),
-                if (_showRegister)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: ElevatedButton.icon(
-                      onPressed: _isBusy ? null : _registerFace,
-                      icon: const Icon(Icons.person_add),
-                      label: const Text("Register Face"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
-                      ),
+                      horizontal: 20,
+                      vertical: 12,
                     ),
                   ),
+                ),
               ],
             ),
           ),
