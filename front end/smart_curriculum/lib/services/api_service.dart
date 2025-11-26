@@ -11,6 +11,7 @@ class ApiService {
 
   static String? loggedInUsername;
   static String? loggedInStudentName;
+  static bool? isFaceRegistered; // NEW
 
   // ---------------------------------------------------------
   // STUDENT LOGIN (Improved)
@@ -31,44 +32,56 @@ class ApiService {
       print("🔹 Login response code: ${res.statusCode}");
       print("🔹 Login response body: ${res.body}");
 
-      if (res.statusCode != 200) {
-        print("❌ HTTP error ${res.statusCode}");
-        return false;
-      }
+      if (res.statusCode != 200) return false;
 
-      // Handle both plain text and JSON responses
       String raw = res.body.trim();
       bool ok = false;
 
       try {
         final json = jsonDecode(raw);
-        if (json is Map && json["ok"] == true) {
-          ok = true;
-        } else if (json["message"]
-                ?.toString()
-                .toLowerCase()
-                .contains("login successful") ==
-            true) {
-          ok = true;
-        }
+        if (json is Map && json["ok"] == true) ok = true;
       } catch (_) {
-        // If not JSON, handle as plain text
-        if (raw.toLowerCase().contains("student login successful")) {
-          ok = true;
-        }
+        if (raw.toLowerCase().contains("student login successful")) ok = true;
       }
 
-      if (ok) {
-        loggedInUsername = username;
-        final profile = await getStudentProfile();
-        if (profile != null && profile["name"] != null) {
-          loggedInStudentName = profile["name"].toString();
-        }
+      if (!ok) return false;
+
+      // load profile
+      loggedInUsername = username;
+      final profile = await getStudentProfile();
+
+      if (profile != null && profile["name"] != null) {
+        loggedInStudentName = profile["name"].toString();
       }
 
-      return ok;
+      // check if face exists
+      if (loggedInStudentName != null) {
+        isFaceRegistered = await checkFaceExists(loggedInStudentName!);
+      }
+
+      return true;
     } catch (e) {
       print("❌ studentLogin error: $e");
+      return false;
+    }
+  }
+
+  // ---------------------------------------------------------
+  // NEW — CHECK IF FACE EXISTS
+  // ---------------------------------------------------------
+  static Future<bool> checkFaceExists(String studentName) async {
+    final url = Uri.parse(
+      "$faceUrl/face/exists?name=${Uri.encodeQueryComponent(studentName)}",
+    );
+
+    try {
+      final res = await http.get(url);
+      if (res.statusCode != 200) return false;
+
+      final data = jsonDecode(res.body);
+      return data["exists"] == true;
+    } catch (e) {
+      print("checkFaceExists error: $e");
       return false;
     }
   }
@@ -83,8 +96,6 @@ class ApiService {
 
     try {
       final res = await http.get(url);
-      print("🔹 Profile response: ${res.statusCode} -> ${res.body}");
-
       if (res.statusCode == 200 && res.body.isNotEmpty) {
         return jsonDecode(res.body);
       }
@@ -96,7 +107,7 @@ class ApiService {
   }
 
   // ---------------------------------------------------------
-  // MARK ATTENDANCE (PRESENT)
+  // MARK PRESENT
   // ---------------------------------------------------------
   static Future<bool> markAttendance(String studentName) async {
     final url = Uri.parse("$springUrl/attendance/mark");
@@ -110,17 +121,14 @@ class ApiService {
           "status": "PRESENT",
         }),
       );
-
-      print("🟢 markAttendance response: ${res.statusCode} -> ${res.body}");
       return res.statusCode == 200;
     } catch (e) {
-      print("❌ markAttendance error: $e");
       return false;
     }
   }
 
   // ---------------------------------------------------------
-  // MARK ATTENDANCE (ABSENT)
+  // MARK ABSENT
   // ---------------------------------------------------------
   static Future<bool> markAbsent(String studentName) async {
     final url = Uri.parse("$springUrl/attendance/mark");
@@ -134,63 +142,9 @@ class ApiService {
           "status": "ABSENT",
         }),
       );
-
-      print("🟠 markAbsent response: ${res.statusCode} -> ${res.body}");
       return res.statusCode == 200;
     } catch (e) {
-      print("❌ markAbsent error: $e");
       return false;
-    }
-  }
-
-  // ---------------------------------------------------------
-  // FLASK — Capture frame
-  // (kept as-is, in case you use it elsewhere)
-  // ---------------------------------------------------------
-  static Future<bool> captureFrame() async {
-    final url = Uri.parse("$faceUrl/face/capture-frame");
-    try {
-      final res = await http.post(url);
-      if (res.statusCode == 200) {
-        final j = jsonDecode(res.body);
-        return j["ok"] == true;
-      }
-      return false;
-    } catch (e) {
-      print("captureFrame error: $e");
-      return false;
-    }
-  }
-
-  // ---------------------------------------------------------
-  // FLASK — Register Face (frame based)
-  // ---------------------------------------------------------
-  static Future<Map<String, dynamic>> registerFace(String studentName) async {
-    final url = Uri.parse("$faceUrl/face/register-frame");
-    try {
-      final res = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"name": studentName}),
-      );
-
-      return jsonDecode(res.body);
-    } catch (e) {
-      return {"ok": false, "error": e.toString()};
-    }
-  }
-
-  // ---------------------------------------------------------
-  // FLASK — Recognize Face (frame based, no file)
-  // ---------------------------------------------------------
-  static Future<Map<String, dynamic>> recognizeFace() async {
-    final url = Uri.parse("$faceUrl/face/recognize");
-    try {
-      final res = await http.post(url);
-      return jsonDecode(res.body);
-    } catch (e) {
-      print("recognizeFace error: $e");
-      return {"ok": false, "error": e.toString()};
     }
   }
 }

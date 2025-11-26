@@ -64,6 +64,25 @@ def detect_and_crop_face(img):
     return crop, emb
 
 # ============================================================
+# NEW — CHECK IF FACE EMBEDDING EXISTS
+# ============================================================
+@app.get("/face/exists")
+def face_exists():
+    name = request.args.get("name")
+    if not name:
+        return jsonify({"ok": False, "exists": False, "error": "Missing ?name"}), 400
+
+    conn = db()
+    cur = conn.cursor()
+    cur.execute("SELECT 1 FROM student_faces WHERE student_name = %s", (name,))
+    found = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    return jsonify({"ok": True, "exists": found is not None})
+
+
+# ============================================================
 # ROUTES
 # ============================================================
 
@@ -101,12 +120,6 @@ def register_mobile():
 
 @app.post("/face/recognize")
 def recognize_face():
-    """
-    If ?name is provided:
-        → Only compare against that student's embedding.
-    If no ?name:
-        → Old behavior: compare against all students and return best match.
-    """
     target_name = request.args.get("name")
 
     f = request.files.get("file")
@@ -122,7 +135,7 @@ def recognize_face():
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
     # --------------------------------------------------------
-    # MODE 1: Targeted recognition (used by your Flutter app)
+    # MODE 1: Targeted recognition (Flutter app)
     # --------------------------------------------------------
     if target_name:
         print(f"🎯 Targeted recognition for: {target_name}")
@@ -135,92 +148,66 @@ def recognize_face():
         conn.close()
 
         if not row:
-            print("⚠️ No embedding found for this student.")
-            return jsonify(
-                {
-                    "ok": True,
-                    "recognized": False,
-                    "name": None,
-                    "score": 0.0,
-                }
-            )
+            return jsonify({
+                "ok": True,
+                "recognized": False,
+                "name": None,
+                "score": 0.0
+            })
 
         emb_data = row["embedding"]
         if isinstance(emb_data, str):
             dbv = np.array(json.loads(emb_data), dtype=np.float32)
-        elif isinstance(emb_data, list):
-            dbv = np.array(emb_data, dtype=np.float32)
         else:
-            print(f"⚠️ Invalid embedding type: {type(emb_data)}")
-            return jsonify({"ok": False, "error": "Invalid embedding format"})
+            dbv = np.array(emb_data, dtype=np.float32)
 
         score = cosine(emb, dbv)
-        print(f"   • similarity score: {score:.4f}")
-
         recognized = score >= 0.35
-        print(f"✅ Recognized={recognized} for {target_name}")
 
-        return jsonify(
-            {
-                "ok": True,
-                "recognized": recognized,
-                "name": target_name if recognized else None,
-                "score": float(score),
-            }
-        )
+        return jsonify({
+            "ok": True,
+            "recognized": recognized,
+            "name": target_name if recognized else None,
+            "score": float(score)
+        })
 
     # --------------------------------------------------------
-    # MODE 2: Legacy mode (no ?name) → search all faces
+    # MODE 2: Legacy recognition (other websites)
     # --------------------------------------------------------
-    print("🔎 Legacy recognition: comparing with all registered students")
     cur.execute("SELECT student_name, embedding FROM student_faces")
     rows = cur.fetchall()
     cur.close()
     conn.close()
 
     if not rows:
-        print("⚠️ No embeddings found in DB.")
-        return (
-            jsonify({"ok": False, "error": "No registered faces."}),
-            404,
-        )
+        return jsonify({"ok": False, "error": "No registered faces."}), 404
 
     best_name, best_score = None, -1.0
     for row in rows:
         emb_data = row["embedding"]
         if isinstance(emb_data, str):
             dbv = np.array(json.loads(emb_data), dtype=np.float32)
-        elif isinstance(emb_data, list):
-            dbv = np.array(emb_data, dtype=np.float32)
         else:
-            print(
-                f"⚠️ Skipping {row['student_name']} - invalid embedding type {type(emb_data)}"
-            )
-            continue
+            dbv = np.array(emb_data, dtype=np.float32)
 
         s = cosine(emb, dbv)
-        print(f"   • {row['student_name']}: {s:.4f}")
         if s > best_score:
             best_name, best_score = row["student_name"], s
 
     recognized = best_score >= 0.35
-    print(
-        f"✅ Best match: {best_name} ({best_score:.4f}), recognized={recognized}"
-    )
 
-    return jsonify(
-        {
-            "ok": True,
-            "recognized": recognized,
-            "name": best_name if recognized else None,
-            "score": float(best_score),
-        }
-    )
+    return jsonify({
+        "ok": True,
+        "recognized": recognized,
+        "name": best_name if recognized else None,
+        "score": float(best_score)
+    })
 
 
 @app.get("/health")
 def health():
     return jsonify({"ok": True})
+
 
 # ============================================================
 # MAIN
