@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:smart_curriculum/utils/constants.dart';
 import '../services/api_service.dart';
 import 'home_screen.dart';
+import 'face_registration_screen.dart'; // 🔥 NEW (you will create this screen)
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -17,32 +18,49 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  void _login() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
 
-      final success = await ApiService.studentLogin(
-        _usernameController.text.trim(),
-        _passwordController.text.trim(),
+    setState(() => _isLoading = true);
+
+    final success = await ApiService.studentLogin(
+      _usernameController.text.trim(),
+      _passwordController.text.trim(),
+    );
+
+    setState(() => _isLoading = false);
+
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid credentials')),
       );
-
-      setState(() => _isLoading = false);
-
-      if (success) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => HomeScreen(
-              studentName: ApiService.loggedInStudentName!, // 💥 FIXED
-            ),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid credentials')),
-        );
-      }
+      return;
     }
+
+    // --------------------------------------------------------------
+    // LOGIN SUCCESS → Check if face is registered for this student
+    // --------------------------------------------------------------
+    final isRegistered = ApiService.isFaceRegistered ?? false;
+    final studentName = ApiService.loggedInStudentName ?? "Unknown";
+
+    if (!isRegistered) {
+      // ❌ No embedding → Ask to register face
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FaceRegistrationScreen(studentName: studentName),
+        ),
+      );
+      return;
+    }
+
+    // ✅ Embedding exists → go to HomeScreen
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => HomeScreen(studentName: studentName),
+      ),
+    );
   }
 
   @override
