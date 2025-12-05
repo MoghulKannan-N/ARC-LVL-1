@@ -1,6 +1,5 @@
 name: smart_curriculum
 description: A Smart Curriculum Activity & Attendance App
-
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -12,27 +11,30 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Networking
-  http: ^1.2.0
+  # 🌐 Networking
+  http: ^0.13.6  # ✅ Compatible with flutter_mjpeg
 
-  # Bluetooth for attendance sync
+  # 📡 Bluetooth for attendance sync
   flutter_bluetooth_serial: ^0.4.0
 
-  # Camera for live photo capture
+  # 📷 Camera for live photo capture
   camera: ^0.10.5+9
 
-  # Permissions
+  # 🔐 Permissions
   permission_handler: ^11.3.0
 
-  # ✅ Compatible ML Kit pair (stable for Flutter 3.3+)
+  # 🧠 Google ML Kit for face detection
   google_mlkit_face_detection: ^0.11.1
   google_mlkit_commons: ^0.8.1
 
-  # Image picker (optional fallback)
+  # 🖼️ Image picker (optional fallback)
   image_picker: ^1.1.2
 
-  # Utility
+  # 🧩 Utility
   collection: ^1.18.0
+
+  # 🖥️ Live MJPEG streaming (Flask camera preview)
+  flutter_mjpeg: ^2.0.4
 
 dev_dependencies:
   flutter_test:

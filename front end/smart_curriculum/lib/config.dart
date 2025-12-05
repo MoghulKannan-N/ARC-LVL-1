@@ -1,5 +1,5 @@
-const String flask =
-    "https://please-distributions-delivered-guidelines.trycloudflare.com";
 
-const String sb =
-    "https://terminals-barcelona-ensemble-rapid.trycloudflare.com";
+const String flask = "http://localhost:5000 ";
+
+
+const String sb = "http://localhost:8080";
