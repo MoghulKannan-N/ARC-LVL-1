@@ -1,1 +1,26 @@
-﻿backend/ai_face_service/models# Android / Kotlin**/.gradle/**/.idea/**/.kotlin/**/local.properties# Flutter / Dart**/.dart_tool/**/.flutter-plugins**/.flutter-plugins-dependencies**/.packages**/pubspec.lock**/build/# Logs & temp*.log*.tmp*.bak# Python / Flask**/__pycache__/**/*.pyc**/.venv/
+﻿# =========================================
+# Ignore Flutter / Android build files
+# =========================================
+**/build/
+**/.gradle/
+**/.dart_tool/
+**/.kotlin/
+**/.idea/
+**/.android/
+**/.vs/
+**/.vscode/
+
+# =========================================
+# Ignore local configs and logs
+# =========================================
+*.log
+*.tmp
+*.bak
+local.properties
+.DS_Store
+Thumbs.db
+
+# =========================================
+# Ignore generated AI models (backend)
+# =========================================
+backend/ai_face_service/models/
