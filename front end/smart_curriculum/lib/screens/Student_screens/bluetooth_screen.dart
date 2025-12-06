@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:smart_curriculum/utils/constants.dart';
-import 'package:smart_curriculum/screens/Student_screens/student_face_registration_screen.dart';
+import 'package:smart_curriculum/screens/Student_screens/face_recognition_screen.dart';
 
 /// Screen where students enable Bluetooth and detect teacher beacon.
 class BluetoothScreen extends StatelessWidget {
@@ -16,12 +16,8 @@ class BluetoothScreen extends StatelessWidget {
   /// Calls the native BLE scan (Kotlin side)
   Future<bool> _scanForTeacher() async {
     try {
-      // Call Kotlin method "scanForTeacher"
       final result = await _channel.invokeMethod("scanForTeacher");
 
-      // Kotlin returns:
-      // "FOUND_AND_RELAYING" → success
-      // "NOT_FOUND" or error → fail
       if (result == "FOUND_AND_RELAYING") {
         return true;
       } else {
@@ -48,7 +44,7 @@ class BluetoothScreen extends StatelessWidget {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => const StudentFaceRegistrationScreen(studentName: "Demo User"),
+          builder: (_) => const FaceRecognitionScreen(),
         ),
       );
       return;
@@ -76,7 +72,7 @@ class BluetoothScreen extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const StudentFaceRegistrationScreen(studentName: "Student"),
+        builder: (_) => const FaceRecognitionScreen(),
       ),
     );
   }
@@ -132,7 +128,6 @@ class BluetoothScreen extends StatelessWidget {
           ),
           const SizedBox(height: 40),
 
-          // Attendance section
           const Text(
             AppStrings.attendance,
             style: TextStyle(
