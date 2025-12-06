@@ -8,7 +8,7 @@ class BluetoothScreen extends StatelessWidget {
   const BluetoothScreen({super.key});
 
   // 🔧 Debug mode flag (set to false for production)
-  static const bool debugMode = false;
+  static const bool debugMode = true;
 
   // Channel name must match the one in MainActivity.kt
   static const MethodChannel _channel = MethodChannel("student_ble");
