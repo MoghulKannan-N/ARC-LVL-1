@@ -1,20 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_curriculum/utils/constants.dart';
-import 'package:smart_curriculum/services/Teacher_service/teacher_ble_service.dart';
 import 'package:smart_curriculum/screens/Teacher_screens/attendance_screen.dart';
 import 'package:smart_curriculum/screens/Teacher_screens/quiz_screen.dart';
 import 'package:smart_curriculum/screens/Teacher_screens/add_student_screen.dart';
 import 'package:smart_curriculum/screens/Teacher_screens/configure_settings_screen.dart';
-import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.dart'
-    as teacher_api;
-import 'package:smart_curriculum/services/Student_service/student_api_service.dart'
-    as student_api;
+import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.dart' as teacher_api;
+import 'package:smart_curriculum/services/Student_service/student_api_service.dart' as student_api;
 import 'package:smart_curriculum/screens/auth/role_selection_screen.dart';
 
 /// 🧑‍🏫 Teacher Dashboard — main screen after successful login.
-/// Contains navigation for Attendance, Home, and Quiz tabs.
 class TeacherHomeScreen extends StatefulWidget {
   const TeacherHomeScreen({super.key});
 
@@ -51,30 +48,27 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                   content: const Text('Are you sure you want to log out?'),
                   actions: [
                     TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(false),
-                        child: const Text('Cancel')),
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: const Text('Cancel'),
+                    ),
                     ElevatedButton(
-                        onPressed: () => Navigator.of(ctx).pop(true),
-                        child: const Text('Logout')),
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      child: const Text('Logout'),
+                    ),
                   ],
                 ),
               );
 
               if (confirm == true) {
-                // 🧹 Clear both teacher + student login states for safety
                 await teacher_api.ApiService.clearLoginState();
                 await student_api.ApiService.clearLoginState();
-
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.remove('currentRole');
 
                 if (!mounted) return;
-
-                // 🔁 Reset to RoleSelectionScreen only
                 Navigator.pushAndRemoveUntil(
                   context,
-                  MaterialPageRoute(
-                      builder: (_) => const RoleSelectionScreen()),
+                  MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
                   (route) => false,
                 );
               }
@@ -124,7 +118,20 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
 class TeacherHomeContent extends StatelessWidget {
   const TeacherHomeContent({super.key});
 
-  /// Show dialog to input student name before configuring.
+  // 🔌 MethodChannel (matches Kotlin side)
+  static const MethodChannel _channel = MethodChannel("student_ble");
+
+  Future<String> _startTeacherBeacon() async {
+    try {
+      final res = await _channel.invokeMethod("startTeacherBeacon");
+      return "✅ Beacon started successfully: $res";
+    } on PlatformException catch (e) {
+      return "⚠️ BLE Error: ${e.message}";
+    } catch (e) {
+      return "⚠️ Unknown Error: $e";
+    }
+  }
+
   void _showStudentNameDialog(BuildContext context) {
     final TextEditingController nameController = TextEditingController();
 
@@ -156,9 +163,7 @@ class TeacherHomeContent extends StatelessWidget {
               }
 
               Navigator.pop(context);
-
-              bool exists =
-                  await teacher_api.ApiService.checkStudentExists(name);
+              bool exists = await teacher_api.ApiService.checkStudentExists(name);
               if (!exists) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Student not found")),
@@ -173,9 +178,7 @@ class TeacherHomeContent extends StatelessWidget {
                 ),
               );
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryColor),
             child: const Text("Continue"),
           ),
         ],
@@ -183,7 +186,6 @@ class TeacherHomeContent extends StatelessWidget {
     );
   }
 
-  /// Show dialog to choose session type before starting beacon.
   void _showSessionSelectionDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -201,9 +203,9 @@ class TeacherHomeContent extends StatelessWidget {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              String res = await BleService.startNormalSession();
+              String result = await _startTeacherBeacon();
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(res)),
+                SnackBar(content: Text(result)),
               );
             },
             child: const Text('Normal Session'),
@@ -213,7 +215,6 @@ class TeacherHomeContent extends StatelessWidget {
     );
   }
 
-  /// Start beacon timer for a given session type.
   void _startBluetoothBeacon(BuildContext context, String sessionType) {
     showDialog(
       context: context,
@@ -229,10 +230,10 @@ class TeacherHomeContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 40),
-          Text(
+          const Text(
             AppStrings.appName,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
               color: AppColors.primaryColor,
@@ -256,8 +257,7 @@ class TeacherHomeContent extends StatelessWidget {
                     ),
                   ],
                 ),
-                child:
-                    const Icon(Icons.bluetooth, size: 60, color: Colors.white),
+                child: const Icon(Icons.bluetooth, size: 60, color: Colors.white),
               ),
             ),
           ),
@@ -294,10 +294,7 @@ class TeacherHomeContent extends StatelessWidget {
             icon: const Icon(Icons.settings, color: Colors.white),
             label: const Text(
               "Configure Settings",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryColor,
@@ -314,12 +311,11 @@ class TeacherHomeContent extends StatelessWidget {
 }
 
 /// =====================================================================
-/// SMALL STATS CARD WIDGET
+/// SMALL STATS CARD
 /// =====================================================================
 class StatCard extends StatelessWidget {
   final String title;
   final String value;
-
   const StatCard({super.key, required this.title, required this.value});
 
   @override
@@ -342,10 +338,7 @@ class StatCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               title,
-              style: TextStyle(
-                fontSize: 14,
-                color: AppColors.subtitleColor,
-              ),
+              style: const TextStyle(fontSize: 14, color: AppColors.subtitleColor),
             ),
           ],
         ),
@@ -359,7 +352,6 @@ class StatCard extends StatelessWidget {
 /// =====================================================================
 class BluetoothTimerDialog extends StatefulWidget {
   final String sessionType;
-
   const BluetoothTimerDialog({super.key, required this.sessionType});
 
   @override

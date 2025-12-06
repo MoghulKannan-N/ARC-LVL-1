@@ -279,7 +279,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                   ],
                                 ),
                               );
-                            }).toList(),
+                            }),
                             const SizedBox(height: 15),
                             ElevatedButton(
                               onPressed: _addQuiz,

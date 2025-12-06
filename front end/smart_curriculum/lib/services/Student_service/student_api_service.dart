@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   static const String springUrl = "$sb/api";
-  static const String faceUrl = "$flask";
+  static const String faceUrl = flask;
 
   static String? loggedInUsername;
   static String? loggedInStudentName;

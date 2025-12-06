@@ -8,16 +8,31 @@ class BluetoothScreen extends StatelessWidget {
   const BluetoothScreen({super.key});
 
   // 🔧 Debug mode flag (set to false for production)
-  static const bool debugMode = true;
+  static const bool debugMode = false;
 
+  // Channel name must match the one in MainActivity.kt
   static const MethodChannel _channel = MethodChannel("student_ble");
 
-  /// Native BLE scanning logic (calls Kotlin)
+  /// Calls the native BLE scan (Kotlin side)
   Future<bool> _scanForTeacher() async {
     try {
+      // Call Kotlin method "scanForTeacher"
       final result = await _channel.invokeMethod("scanForTeacher");
-      return result == "FOUND";
+
+      // Kotlin returns:
+      // "FOUND_AND_RELAYING" → success
+      // "NOT_FOUND" or error → fail
+      if (result == "FOUND_AND_RELAYING") {
+        return true;
+      } else {
+        debugPrint("BLE Scan result: $result");
+        return false;
+      }
+    } on PlatformException catch (e) {
+      debugPrint("⚠️ PlatformException: ${e.message}");
+      return false;
     } catch (e) {
+      debugPrint("⚠️ BLE scan failed: $e");
       return false;
     }
   }
@@ -25,6 +40,7 @@ class BluetoothScreen extends StatelessWidget {
   /// Handles Bluetooth button tap
   Future<void> _handleBluetoothTap(BuildContext context) async {
     if (debugMode) {
+      // Debug bypass
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("⚙️ Debug mode: Skipping Bluetooth check")),
       );
@@ -32,13 +48,17 @@ class BluetoothScreen extends StatelessWidget {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => StudentFaceRegistrationScreen(studentName: "Demo User"),
+          builder: (_) => const StudentFaceRegistrationScreen(studentName: "Demo User"),
         ),
       );
       return;
     }
 
-    // Normal mode → perform scan
+    // Normal flow → perform scan
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("🔍 Scanning for teacher beacon...")),
+    );
+
     bool found = await _scanForTeacher();
 
     if (!found) {
@@ -48,11 +68,15 @@ class BluetoothScreen extends StatelessWidget {
       return;
     }
 
-    // ✅ Success → navigate
+    // ✅ Found teacher → navigate to next screen
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("✅ Teacher beacon found! Starting face recognition...")),
+    );
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => StudentFaceRegistrationScreen(studentName: "Student"),
+        builder: (_) => const StudentFaceRegistrationScreen(studentName: "Student"),
       ),
     );
   }
@@ -99,7 +123,7 @@ class BluetoothScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           const Text(
-            'Tap the Bluetooth icon to start face recognition',
+            'Tap the Bluetooth icon to start attendance',
             style: TextStyle(
               fontSize: 16,
               color: AppColors.subtitleColor,
@@ -107,6 +131,8 @@ class BluetoothScreen extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 40),
+
+          // Attendance section
           const Text(
             AppStrings.attendance,
             style: TextStyle(

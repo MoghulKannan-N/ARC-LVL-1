@@ -1,33 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- ========================= -->
-    <!-- BLUETOOTH + LOCATION PERMISSIONS -->
-    <!-- ========================= -->
+    <!-- ==================================================== -->
+    <!-- BLUETOOTH + LOCATION PERMISSIONS (all Android levels) -->
+    <!-- ==================================================== -->
 
-    <!-- Required for BLE scanning on Android < 12 -->
+    <!-- Location permissions required for BLE scanning on Android < 12 -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
-    <!-- Android 12+ Nearby Devices permissions -->
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
-        android:usesPermissionFlags="neverForLocation" />
+    <!-- Android 12+ (API 31+) Nearby Devices permissions -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        android:required="false" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-
-    <!-- BLE advertising if needed -->
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
 
-    <!-- Legacy Bluetooth (older devices) -->
+    <!-- Legacy Bluetooth support for backward compatibility -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 
-    <!-- BLE feature -->
+    <!-- Android 13+ nearby devices permission (auto-granted when scan is allowed) -->
+    <uses-permission android:name="android.permission.NEARBY_DEVICES" android:required="false" />
+
+    <!-- ==================================================== -->
+    <!-- HARDWARE FEATURES -->
+    <!-- ==================================================== -->
+
+    <!-- BLE capability (not required so app installs on all phones) -->
     <uses-feature
         android:name="android.hardware.bluetooth_le"
         android:required="false" />
 
-    <!-- ========================= -->
+    <!-- Optional: location hardware (if phone uses GPS for BLE) -->
+    <uses-feature
+        android:name="android.hardware.location"
+        android:required="false" />
+
+    <!-- ==================================================== -->
     <!-- APPLICATION SECTION -->
-    <!-- ========================= -->
+    <!-- ==================================================== -->
 
     <application
         android:label="Student"
@@ -45,28 +58,33 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
+            <!-- Flutter theming -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
 
+            <!-- App launcher -->
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
         </activity>
 
+        <!-- Required for Flutter embedding -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-
     </application>
 
-    <!-- Required for PROCESS_TEXT actions -->
+    <!-- ==================================================== -->
+    <!-- OPTIONAL: Explicit query permission for PROCESS_TEXT -->
+    <!-- ==================================================== -->
+
     <queries>
         <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
         </intent>
     </queries>
 

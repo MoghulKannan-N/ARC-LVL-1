@@ -19,7 +19,7 @@ class RoleSelectionScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // Title
-              Text(
+              const Text(
                 AppStrings.appName,
                 style: TextStyle(
                   fontSize: 28,
@@ -29,7 +29,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              Text(
+              const Text(
                 "Please select your role to continue",
                 style: TextStyle(
                   fontSize: 16,
