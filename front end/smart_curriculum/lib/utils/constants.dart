@@ -15,6 +15,7 @@ class AppColors {
 class AppStrings {
   // ✅ Shared constants
   static const appName = 'Smart Curriculum';
+  static const settings = 'Settings'; // 🆕 Added for Settings screen
   static const emailHint = 'Enter your email';
   static const passwordHint = 'Enter your password';
   static const forgotPassword = 'Forgot Password?';
@@ -40,6 +41,11 @@ class AppStrings {
   static const alignFace = 'Align your face with the circle';
   static const waitingDetection = 'Waiting for face detection...';
   static const startRecognition = 'Start Recognition';
+
+  // 🆕 These were missing earlier — required by Settings screen
+  static const configureFaceRecognition = 'Configure Face Recognition';
+  static const configureBluetooth = 'Configure Bluetooth';
+  static const configureDeviceBinding = 'Configure Device Binding';
 
   // ✅ Teacher-specific
   static const teacherLogin = 'Teacher Login';

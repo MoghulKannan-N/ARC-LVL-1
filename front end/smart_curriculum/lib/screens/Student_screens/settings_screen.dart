@@ -21,7 +21,7 @@ class SettingsScreen extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Padding(
+      body: SingleChildScrollView( // ✅ Prevents bottom overflow
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -29,7 +29,7 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(height: 20),
 
             _buildSettingsOption(
-              context,
+              context: context,
               title: AppStrings.configureFaceRecognition,
               icon: Icons.face,
               onTap: () {
@@ -46,7 +46,7 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(height: 16),
 
             _buildSettingsOption(
-              context,
+              context: context,
               title: AppStrings.configureBluetooth,
               icon: Icons.bluetooth,
               onTap: () {
@@ -62,7 +62,7 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(height: 16),
 
             _buildSettingsOption(
-              context,
+              context: context,
               title: AppStrings.configureDeviceBinding,
               icon: Icons.devices,
               onTap: () {

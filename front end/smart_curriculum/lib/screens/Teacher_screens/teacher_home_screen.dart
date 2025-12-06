@@ -132,56 +132,78 @@ class TeacherHomeContent extends StatelessWidget {
     }
   }
 
+  /// ✅ Fixed AlertDialog (small, scroll-safe, no overflow)
   void _showStudentNameDialog(BuildContext context) {
+    final parentContext = context;
     final TextEditingController nameController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Enter Student Name"),
-        content: TextField(
-          controller: nameController,
-          decoration: const InputDecoration(
-            labelText: "Student Name",
-            border: OutlineInputBorder(),
+      builder: (dialogContext) => AnimatedPadding(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: const Text(
+            "Enter Student Name",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
           ),
+          content: TextField(
+            controller: nameController,
+            decoration: const InputDecoration(
+              labelText: "Student Name",
+              border: OutlineInputBorder(),
+              isDense: true, // 👈 makes the input box smaller like before
+            ),
+            textInputAction: TextInputAction.done,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+              onPressed: () async {
+                final name = nameController.text.trim();
+
+                if (name.isEmpty) {
+                  ScaffoldMessenger.of(parentContext).showSnackBar(
+                    const SnackBar(content: Text("Enter a valid name")),
+                  );
+                  return;
+                }
+
+                Navigator.pop(dialogContext);
+                final exists = await teacher_api.ApiService.checkStudentExists(name);
+
+                if (!exists) {
+                  ScaffoldMessenger.of(parentContext).showSnackBar(
+                    const SnackBar(content: Text("Student not found")),
+                  );
+                  return;
+                }
+
+                if (!parentContext.mounted) return;
+
+                Navigator.push(
+                  parentContext,
+                  MaterialPageRoute(
+                    builder: (_) => ConfigureSettingsScreen(studentName: name),
+                  ),
+                );
+              },
+              child: const Text("Continue"),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final name = nameController.text.trim();
-
-              if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Enter a valid name")),
-                );
-                return;
-              }
-
-              Navigator.pop(context);
-              bool exists = await teacher_api.ApiService.checkStudentExists(name);
-              if (!exists) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Student not found")),
-                );
-                return;
-              }
-
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ConfigureSettingsScreen(studentName: name),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryColor),
-            child: const Text("Continue"),
-          ),
-        ],
       ),
     );
   }
@@ -204,9 +226,11 @@ class TeacherHomeContent extends StatelessWidget {
             onPressed: () async {
               Navigator.pop(context);
               String result = await _startTeacherBeacon();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(result)),
-              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(result)),
+                );
+              }
             },
             child: const Text('Normal Session'),
           ),
