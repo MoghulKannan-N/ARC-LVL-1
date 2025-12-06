@@ -4,6 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:smart_curriculum/services/Student_service/student_api_service.dart';
+import 'package:smart_curriculum/screens/Student_screens/student_face_registration_screen.dart';
 
 class FaceRecognitionScreen extends StatefulWidget {
   const FaceRecognitionScreen({super.key});
@@ -44,6 +45,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
       ResolutionPreset.medium,
       enableAudio: false,
     );
+
     await _controller!.initialize();
 
     setState(() => _status = "Camera ready. Press Capture.");
@@ -61,7 +63,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
     try {
       final file = await _controller!.takePicture();
 
-      // Local ML face detection (to avoid sending empty frames)
+      /// Step 1 — Local ML Face Detection
       final inputImage = InputImage.fromFilePath(file.path);
       final faces = await _faceDetector.processImage(inputImage);
 
@@ -73,7 +75,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
         return;
       }
 
-      // Get logged-in student name from ApiService
+      /// Step 2 — Get student name
       final studentName = ApiService.loggedInStudentName;
       if (studentName == null || studentName.trim().isEmpty) {
         setState(() {
@@ -84,6 +86,31 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
         return;
       }
 
+      /// Step 3 — Check if student already has face embedding
+      final faceExists = await ApiService.checkFaceExists(studentName);
+
+      if (!faceExists) {
+        setState(() {
+          _isBusy = false;
+          _status = "⚠️ No face embedding found for $studentName";
+          _result = "Redirecting to face registration...";
+        });
+
+        await Future.delayed(const Duration(seconds: 1));
+
+        if (!mounted) return;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => StudentFaceRegistrationScreen(studentName: studentName),
+          ),
+        );
+
+        return;
+      }
+
+      /// Step 4 — Send image for recognition
       setState(() => _status = "🔍 Sending for recognition...");
 
       final uri = Uri.parse(
@@ -119,26 +146,28 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
       final score = (data["score"] ?? 0.0).toStringAsFixed(3);
 
       if (recognized) {
-        // ✅ Matched: mark PRESENT
+        /// Matched → Mark PRESENT
         setState(() {
           _status = "✅ Face verified as $studentName";
           _result = "Score: $score\nMarking PRESENT...";
         });
 
         final ok = await ApiService.markAttendance(studentName);
+
         setState(() {
           _result += ok
               ? "\n🟢 Attendance marked PRESENT"
               : "\n⚠️ Failed to update attendance";
         });
       } else {
-        // ❌ Not matched: mark ABSENT
+        /// Not matched → Mark ABSENT
         setState(() {
           _status = "❌ Face does NOT match $studentName";
           _result = "Score: $score\nMarking ABSENT...";
         });
 
         final ok = await ApiService.markAbsent(studentName);
+
         setState(() {
           _result += ok
               ? "\n🟠 Attendance marked ABSENT"
@@ -177,6 +206,8 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : CameraPreview(_controller!),
           ),
+
+          /// Bottom panel
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.black87,
@@ -198,6 +229,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
+
                 ElevatedButton.icon(
                   onPressed: _isBusy ? null : _captureAndRecognize,
                   icon: const Icon(Icons.camera_alt),
