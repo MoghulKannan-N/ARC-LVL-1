@@ -1,5 +1,4 @@
+const String flask = "https://nuke-remedy-books-lawn.trycloudflare.com";
 
-const String flask = "https://mirrors-conduct-leather-sounds.trycloudflare.com ";
 
-
-const String sb = "https://cluster-transportation-counts-there.trycloudflare.com";
+const String sb = "https://during-nyc-role-laughing.trycloudflare.com";

@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_curriculum/utils/constants.dart';
 import 'package:smart_curriculum/screens/Teacher_screens/teacher_home_screen.dart';
-import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.dart';
+import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.dart'
+    as teacher_api;
+import 'package:smart_curriculum/services/Student_service/student_api_service.dart'
+    as student_api;
 
-/// Teacher Login Screen — authenticates teacher and redirects to dashboard.
+/// 👨‍🏫 Teacher Login Screen — authenticates teacher and redirects to dashboard.
 class TeacherLoginScreen extends StatefulWidget {
   const TeacherLoginScreen({super.key});
 
@@ -17,24 +21,32 @@ class _TeacherLoginScreenState extends State<TeacherLoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  /// Handles teacher login using API service
+  /// Handles teacher login with session cleanup
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
+    // 🧹 Clear student session before logging teacher in
+    await student_api.ApiService.clearLoginState();
+
     final username = _usernameController.text.trim();
     final password = _passwordController.text.trim();
 
-    final success = await ApiService.teacherLogin(username, password);
+    final success = await teacher_api.ApiService.teacherLogin(username, password);
 
     setState(() => _isLoading = false);
 
     if (success) {
-      // ✅ Navigate to the Teacher Dashboard
-      Navigator.pushReplacement(
+      // ✅ Persist role = teacher
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('currentRole', 'teacher');
+
+      // ✅ Clean navigation
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const TeacherHomeScreen()),
+        (route) => false,
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -53,12 +65,8 @@ class _TeacherLoginScreenState extends State<TeacherLoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 80),
-
-            // App icon
             const Icon(Icons.school, size: 100, color: AppColors.primaryColor),
             const SizedBox(height: 24),
-
-            // Title
             const Text(
               'Smart Curriculum - Teacher Portal',
               textAlign: TextAlign.center,
@@ -68,10 +76,7 @@ class _TeacherLoginScreenState extends State<TeacherLoginScreen> {
                 color: AppColors.primaryColor,
               ),
             ),
-
             const SizedBox(height: 48),
-
-            // Login form card
             Card(
               elevation: 4,
               shape: RoundedRectangleBorder(
@@ -92,8 +97,6 @@ class _TeacherLoginScreenState extends State<TeacherLoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-
-                      // Username field
                       TextFormField(
                         controller: _usernameController,
                         decoration: const InputDecoration(
@@ -104,10 +107,7 @@ class _TeacherLoginScreenState extends State<TeacherLoginScreen> {
                         validator: (v) =>
                             v == null || v.isEmpty ? 'Enter username' : null,
                       ),
-
                       const SizedBox(height: 16),
-
-                      // Password field
                       TextFormField(
                         controller: _passwordController,
                         obscureText: true,
@@ -119,16 +119,12 @@ class _TeacherLoginScreenState extends State<TeacherLoginScreen> {
                         validator: (v) =>
                             v == null || v.isEmpty ? 'Enter password' : null,
                       ),
-
                       const SizedBox(height: 24),
-
-                      // Login button
                       ElevatedButton(
                         onPressed: _isLoading ? null : _login,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryColor,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 14),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),

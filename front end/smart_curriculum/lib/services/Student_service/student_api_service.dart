@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:smart_curriculum/config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   static const String springUrl = "$sb/api";
@@ -9,6 +10,56 @@ class ApiService {
   static String? loggedInUsername;
   static String? loggedInStudentName;
   static bool? isFaceRegistered;
+
+  // Keys for SharedPreferences
+  static const _kUsername = 'student_logged_in_username';
+  static const _kStudentName = 'student_logged_in_name';
+  static const _kFaceRegistered = 'student_face_registered';
+
+  /// Save current login state to local persistent storage.
+  static Future<void> saveLoginState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (loggedInUsername != null) {
+        await prefs.setString(_kUsername, loggedInUsername!);
+      }
+      if (loggedInStudentName != null) {
+        await prefs.setString(_kStudentName, loggedInStudentName!);
+      }
+      if (isFaceRegistered != null) {
+        await prefs.setBool(_kFaceRegistered, isFaceRegistered!);
+      }
+    } catch (e) {
+      print('saveLoginState error: $e');
+    }
+  }
+
+  /// Load saved login state (if any) into memory.
+  static Future<void> loadLoginState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      loggedInUsername = prefs.getString(_kUsername);
+      loggedInStudentName = prefs.getString(_kStudentName);
+      isFaceRegistered = prefs.getBool(_kFaceRegistered);
+    } catch (e) {
+      print('loadLoginState error: $e');
+    }
+  }
+
+  /// Clear login state from memory and persistent storage.
+  static Future<void> clearLoginState() async {
+    loggedInUsername = null;
+    loggedInStudentName = null;
+    isFaceRegistered = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kUsername);
+      await prefs.remove(_kStudentName);
+      await prefs.remove(_kFaceRegistered);
+    } catch (e) {
+      print('clearLoginState error: $e');
+    }
+  }
 
   // ---------------------------------------------------------
   // STUDENT LOGIN
@@ -54,6 +105,9 @@ class ApiService {
       if (loggedInStudentName != null) {
         isFaceRegistered = await checkFaceExists(loggedInStudentName!);
       }
+
+      // persist login state so user remains logged in across app restarts
+      await saveLoginState();
 
       return true;
     } catch (e) {

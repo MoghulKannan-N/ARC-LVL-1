@@ -1,12 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_curriculum/utils/constants.dart';
 import 'package:smart_curriculum/services/Teacher_service/teacher_ble_service.dart';
 import 'package:smart_curriculum/screens/Teacher_screens/attendance_screen.dart';
 import 'package:smart_curriculum/screens/Teacher_screens/quiz_screen.dart';
 import 'package:smart_curriculum/screens/Teacher_screens/add_student_screen.dart';
 import 'package:smart_curriculum/screens/Teacher_screens/configure_settings_screen.dart';
-import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.dart';
+import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.dart'
+    as teacher_api;
+import 'package:smart_curriculum/services/Student_service/student_api_service.dart'
+    as student_api;
+import 'package:smart_curriculum/screens/auth/role_selection_screen.dart';
 
 /// 🧑‍🏫 Teacher Dashboard — main screen after successful login.
 /// Contains navigation for Attendance, Home, and Quiz tabs.
@@ -30,9 +35,52 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text(AppStrings.appName),
         backgroundColor: AppColors.primaryColor,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            tooltip: 'Logout',
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Logout'),
+                  content: const Text('Are you sure you want to log out?'),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(false),
+                        child: const Text('Cancel')),
+                    ElevatedButton(
+                        onPressed: () => Navigator.of(ctx).pop(true),
+                        child: const Text('Logout')),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                // 🧹 Clear both teacher + student login states for safety
+                await teacher_api.ApiService.clearLoginState();
+                await student_api.ApiService.clearLoginState();
+
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('currentRole');
+
+                if (!mounted) return;
+
+                // 🔁 Reset to RoleSelectionScreen only
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const RoleSelectionScreen()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
+        ],
       ),
       body: _screens[_currentIndex],
       floatingActionButton: FloatingActionButton(
@@ -109,7 +157,8 @@ class TeacherHomeContent extends StatelessWidget {
 
               Navigator.pop(context);
 
-              bool exists = await ApiService.checkStudentExists(name);
+              bool exists =
+                  await teacher_api.ApiService.checkStudentExists(name);
               if (!exists) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text("Student not found")),
@@ -180,8 +229,6 @@ class TeacherHomeContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 40),
-
-          // App name
           Text(
             AppStrings.appName,
             textAlign: TextAlign.center,
@@ -191,10 +238,7 @@ class TeacherHomeContent extends StatelessWidget {
               color: AppColors.primaryColor,
             ),
           ),
-
           const Divider(height: 40),
-
-          // Bluetooth beacon start button
           Center(
             child: GestureDetector(
               onTap: () => _showSessionSelectionDialog(context),
@@ -212,13 +256,12 @@ class TeacherHomeContent extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.bluetooth, size: 60, color: Colors.white),
+                child:
+                    const Icon(Icons.bluetooth, size: 60, color: Colors.white),
               ),
             ),
           ),
-
           const SizedBox(height: 20),
-
           const Text(
             'Enable Bluetooth',
             textAlign: TextAlign.center,
@@ -228,7 +271,6 @@ class TeacherHomeContent extends StatelessWidget {
               color: AppColors.textColor,
             ),
           ),
-
           const SizedBox(height: 10),
           const Text(
             'Tap the Bluetooth icon to start attendance',
@@ -238,10 +280,7 @@ class TeacherHomeContent extends StatelessWidget {
               color: AppColors.subtitleColor,
             ),
           ),
-
           const SizedBox(height: 40),
-
-          // Stats row
           const Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -249,10 +288,7 @@ class TeacherHomeContent extends StatelessWidget {
               StatCard(title: 'Present Today', value: '0'),
             ],
           ),
-
           const SizedBox(height: 40),
-
-          // Configure student settings
           ElevatedButton.icon(
             onPressed: () => _showStudentNameDialog(context),
             icon: const Icon(Icons.settings, color: Colors.white),
@@ -284,11 +320,7 @@ class StatCard extends StatelessWidget {
   final String title;
   final String value;
 
-  const StatCard({
-    super.key,
-    required this.title,
-    required this.value,
-  });
+  const StatCard({super.key, required this.title, required this.value});
 
   @override
   Widget build(BuildContext context) {

@@ -1,18 +1,18 @@
 name: smart_curriculum
 description: A Smart Curriculum Activity & Attendance App
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.3.0 <4.0.0'
+  sdk: ">=3.3.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
 
   # 🌐 Networking
-  http: ^0.13.6  # ✅ Compatible with flutter_mjpeg
+  http: ^0.13.6 # ✅ Compatible with flutter_mjpeg
 
   # 📡 Bluetooth for attendance sync
   flutter_bluetooth_serial: ^0.4.0
@@ -29,6 +29,9 @@ dependencies:
 
   # 🖼️ Image picker (optional fallback)
   image_picker: ^1.1.2
+
+  # Persistent storage for simple key/value (used for login persistence)
+  shared_preferences: ^2.1.1
 
   # 🧩 Utility
   collection: ^1.18.0

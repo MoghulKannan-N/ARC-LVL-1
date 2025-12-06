@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:smart_curriculum/config.dart'; // ✅ corrected import path
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   static const String baseUrl = "$sb/api";
@@ -8,6 +9,49 @@ class ApiService {
   // Store logged-in teacher username + name
   static String? loggedInTeacherUsername;
   static String? loggedInTeacherName;
+
+  // Keys for SharedPreferences
+  static const _kTeacherUsername = 'teacher_logged_in_username';
+  static const _kTeacherName = 'teacher_logged_in_name';
+
+  /// Save teacher login state persistently.
+  static Future<void> saveLoginState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (loggedInTeacherUsername != null) {
+        await prefs.setString(_kTeacherUsername, loggedInTeacherUsername!);
+      }
+      if (loggedInTeacherName != null) {
+        await prefs.setString(_kTeacherName, loggedInTeacherName!);
+      }
+    } catch (e) {
+      print('saveLoginState error: $e');
+    }
+  }
+
+  /// Load teacher login state from persistent storage.
+  static Future<void> loadLoginState() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      loggedInTeacherUsername = prefs.getString(_kTeacherUsername);
+      loggedInTeacherName = prefs.getString(_kTeacherName);
+    } catch (e) {
+      print('loadLoginState error: $e');
+    }
+  }
+
+  /// Clear teacher login state from memory and storage.
+  static Future<void> clearLoginState() async {
+    loggedInTeacherUsername = null;
+    loggedInTeacherName = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kTeacherUsername);
+      await prefs.remove(_kTeacherName);
+    } catch (e) {
+      print('clearLoginState error: $e');
+    }
+  }
 
   // --------------------------------------------------------
   // TEACHER LOGIN (Stores teacherName too)
@@ -39,6 +83,8 @@ class ApiService {
         } else {
           print("Teacher profile fetch failed.");
         }
+        // persist teacher login state
+        await saveLoginState();
       }
 
       return ok;
@@ -54,8 +100,8 @@ class ApiService {
   static Future<Map<String, dynamic>?> getTeacherProfile() async {
     if (loggedInTeacherUsername == null) return null;
 
-    final url = Uri.parse(
-        "$baseUrl/teacher/me?username=$loggedInTeacherUsername");
+    final url =
+        Uri.parse("$baseUrl/teacher/me?username=$loggedInTeacherUsername");
 
     try {
       final res = await http.get(url);

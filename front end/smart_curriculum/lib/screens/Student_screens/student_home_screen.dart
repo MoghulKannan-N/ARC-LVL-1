@@ -3,8 +3,14 @@ import 'package:smart_curriculum/screens/Student_screens/profile_screen.dart';
 import 'package:smart_curriculum/screens/Student_screens/bluetooth_screen.dart';
 import 'package:smart_curriculum/screens/Student_screens/ai_assistant_screen.dart';
 import 'package:smart_curriculum/utils/constants.dart';
+import 'package:smart_curriculum/services/Student_service/student_api_service.dart'
+    as student_api;
+import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.dart'
+    as teacher_api;
+import 'package:smart_curriculum/screens/auth/role_selection_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Student dashboard with bottom navigation for profile, attendance, AI assistant.
+/// 🧠 Student dashboard with bottom navigation for profile, attendance, AI assistant.
 class StudentHomeScreen extends StatefulWidget {
   final String studentName;
 
@@ -27,9 +33,52 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text("Student Dashboard"),
         backgroundColor: AppColors.primaryColor,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            tooltip: 'Logout',
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Logout'),
+                  content: const Text('Are you sure you want to log out?'),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(false),
+                        child: const Text('Cancel')),
+                    ElevatedButton(
+                        onPressed: () => Navigator.of(ctx).pop(true),
+                        child: const Text('Logout')),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                // 🧹 Clear both student and teacher state for safety
+                await student_api.ApiService.clearLoginState();
+                await teacher_api.ApiService.clearLoginState();
+
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.remove('currentRole');
+
+                if (!mounted) return;
+
+                // 🔁 Clean reset to Role Selection screen
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const RoleSelectionScreen()),
+                  (route) => false,
+                );
+              }
+            },
+          ),
+        ],
       ),
       body: screens[index],
       bottomNavigationBar: BottomNavigationBar(
@@ -40,7 +89,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
           BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.assistant), label: "AI Assistant"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.assistant), label: "AI Assistant"),
         ],
       ),
     );

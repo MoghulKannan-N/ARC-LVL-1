@@ -45,7 +45,8 @@ class RoleSelectionScreen extends StatelessWidget {
                 label: "I'm a Student",
                 color: AppColors.primaryColor,
                 onPressed: () {
-                  Navigator.pushReplacement(
+                  // Push so the RoleSelection remains beneath the Login screen.
+                  Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const StudentLoginScreen(),
@@ -63,7 +64,8 @@ class RoleSelectionScreen extends StatelessWidget {
                 label: "I'm a Teacher",
                 color: Colors.deepOrange,
                 onPressed: () {
-                  Navigator.pushReplacement(
+                  // Push so the RoleSelection remains beneath the Login screen.
+                  Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => const TeacherLoginScreen(),
