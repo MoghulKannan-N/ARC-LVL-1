@@ -98,14 +98,14 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
     final yaw = face.headEulerAngleY ?? 0;
     final smile = face.smilingProbability ?? 0.0;
 
-    if (!leftDone && yaw < -15) {
+    if (!leftDone && yaw < 15) {
       leftDone = true;
       stage = 1;
       setState(() => _status = "✔ LEFT detected — Now turn RIGHT");
       return;
     }
 
-    if (leftDone && !rightDone && yaw > 15) {
+    if (leftDone && !rightDone && yaw > -15) {
       rightDone = true;
       stage = 2;
       setState(() => _status = "✔ RIGHT detected — Now SMILE 😊");
