@@ -1,4 +1,4 @@
-const String flask ="https://garcia-statutory-dictionary-atlanta.trycloudflare.com";
+const String flask ="http://localhost:5000";
 
 
-const String sb ="https://village-resources-converted-average.trycloudflare.com";
+const String sb ="http://localhost:8080";

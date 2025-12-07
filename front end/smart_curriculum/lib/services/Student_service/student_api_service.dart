@@ -16,7 +16,9 @@ class ApiService {
   static const _kStudentName = 'student_logged_in_name';
   static const _kFaceRegistered = 'student_face_registered';
 
-  /// Save current login state to local persistent storage.
+  // ---------------------------------------------------------
+  // SAVE / LOAD / CLEAR LOGIN STATE
+  // ---------------------------------------------------------
   static Future<void> saveLoginState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -34,7 +36,6 @@ class ApiService {
     }
   }
 
-  /// Load saved login state (if any) into memory.
   static Future<void> loadLoginState() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -46,7 +47,6 @@ class ApiService {
     }
   }
 
-  /// Clear login state from memory and persistent storage.
   static Future<void> clearLoginState() async {
     loggedInUsername = null;
     loggedInStudentName = null;
@@ -101,12 +101,10 @@ class ApiService {
         loggedInStudentName = profile["name"].toString();
       }
 
-      // (Optional) still checks face registration for later
       if (loggedInStudentName != null) {
         isFaceRegistered = await checkFaceExists(loggedInStudentName!);
       }
 
-      // persist login state so user remains logged in across app restarts
       await saveLoginState();
 
       return true;
@@ -136,7 +134,7 @@ class ApiService {
   }
 
   // ---------------------------------------------------------
-  // GET STUDENT PROFILE
+  // GET STUDENT PROFILE (OLD SYSTEM)
   // ---------------------------------------------------------
   static Future<Map<String, dynamic>?> getStudentProfile() async {
     if (loggedInUsername == null) return null;
@@ -156,7 +154,45 @@ class ApiService {
   }
 
   // ---------------------------------------------------------
-  // MARK PRESENT
+  // PROFILE MANAGEMENT (NEW)
+  // ---------------------------------------------------------
+
+  /// Fetch extended student profile (from ProfileController)
+  static Future<Map<String, dynamic>?> fetchFullProfile(
+      String studentName) async {
+    final url = Uri.parse("$springUrl/profile/$studentName");
+
+    try {
+      final res = await http.get(url);
+      if (res.statusCode == 200 && res.body.isNotEmpty) {
+        return jsonDecode(res.body);
+      }
+      return null;
+    } catch (e) {
+      print("❌ fetchFullProfile error: $e");
+      return null;
+    }
+  }
+
+  /// Update profile fields (DOB, phone, course, etc.)
+  static Future<bool> updateFullProfile(
+      String studentName, Map<String, dynamic> profileData) async {
+    final url = Uri.parse("$springUrl/profile/$studentName");
+    try {
+      final res = await http.put(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(profileData),
+      );
+      return res.statusCode == 200;
+    } catch (e) {
+      print("❌ updateFullProfile error: $e");
+      return false;
+    }
+  }
+
+  // ---------------------------------------------------------
+  // ATTENDANCE MANAGEMENT
   // ---------------------------------------------------------
   static Future<bool> markAttendance(String studentName) async {
     final url = Uri.parse("$springUrl/attendance/mark");
@@ -175,9 +211,6 @@ class ApiService {
     }
   }
 
-  // ---------------------------------------------------------
-  // MARK ABSENT
-  // ---------------------------------------------------------
   static Future<bool> markAbsent(String studentName) async {
     final url = Uri.parse("$springUrl/attendance/mark");
     try {
