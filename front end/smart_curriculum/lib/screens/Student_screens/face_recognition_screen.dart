@@ -49,15 +49,16 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
   Future<void> _initCamera() async {
     final cameras = await availableCameras();
     final frontCam = cameras.firstWhere(
-          (c) => c.lensDirection == CameraLensDirection.front,
+      (c) => c.lensDirection == CameraLensDirection.front,
     );
 
-    _controller = CameraController(frontCam, ResolutionPreset.medium, enableAudio: false);
+    _controller =
+        CameraController(frontCam, ResolutionPreset.medium, enableAudio: false);
     await _controller!.initialize();
 
     setState(() => _status = "Turn your head LEFT");
 
-    // SAFE periodic checking (every 500 ms)
+    // Start periodic frame checking every 600 ms
     _timer = Timer.periodic(const Duration(milliseconds: 600), (_) {
       if (!_processing) {
         _processing = true;
@@ -71,7 +72,6 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
 
     try {
       final pic = await _controller!.takePicture();
-
       final input = InputImage.fromFilePath(pic.path);
       final faces = await _faceDetector.processImage(input);
 
@@ -95,23 +95,27 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
   }
 
   void _evaluateLiveness(Face face) {
+    // ✅ Use normal yaw (no inversion). MLKit angles are not mirrored.
     final yaw = face.headEulerAngleY ?? 0;
     final smile = face.smilingProbability ?? 0.0;
 
-    if (!leftDone && yaw < 15) {
+    // TURN LEFT (user’s left = yaw positive)
+    if (!leftDone && yaw > 15) {
       leftDone = true;
       stage = 1;
       setState(() => _status = "✔ LEFT detected — Now turn RIGHT");
       return;
     }
 
-    if (leftDone && !rightDone && yaw > -15) {
+    // TURN RIGHT (user’s right = yaw negative)
+    if (leftDone && !rightDone && yaw < -15) {
       rightDone = true;
       stage = 2;
       setState(() => _status = "✔ RIGHT detected — Now SMILE 😊");
       return;
     }
 
+    // SMILE
     if (leftDone && rightDone && !smileDone && smile > 0.65) {
       smileDone = true;
       stage = 3;
@@ -130,13 +134,15 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => StudentFaceRegistrationScreen(studentName: studentName),
+          builder: (_) =>
+              StudentFaceRegistrationScreen(studentName: studentName),
         ),
       );
       return;
     }
 
-    final uri = Uri.parse("${ApiService.faceUrl}/face/recognize?name=$studentName");
+    final uri =
+        Uri.parse("${ApiService.faceUrl}/face/recognize?name=$studentName");
     final req = http.MultipartRequest("POST", uri)
       ..files.add(await http.MultipartFile.fromPath("file", path));
 
@@ -190,7 +196,6 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : CameraPreview(_controller!),
           ),
-
           Container(
             padding: const EdgeInsets.all(16),
             color: Colors.black,
@@ -206,11 +211,12 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
                 Text(
                   _result,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.greenAccent, fontSize: 16),
+                  style: const TextStyle(
+                      color: Colors.greenAccent, fontSize: 16),
                 ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
