@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:smart_curriculum/utils/constants.dart';
 import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.dart';
+import 'package:smart_curriculum/screens/Teacher_screens/add_student_screen.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -19,21 +20,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     loadStudents();
   }
 
-  // ------------------------------------------------------
-  // LOAD ALL STUDENTS
-  // ------------------------------------------------------
+  // ------------------ Load Students ------------------
   Future<void> loadStudents() async {
     final data = await ApiService.getAllStudents();
-
     setState(() {
       students = data ?? [];
       loading = false;
     });
   }
 
-  // ------------------------------------------------------
-  // UPDATE ATTENDANCE STATUS
-  // ------------------------------------------------------
+  // ---------------- Update Attendance -----------------
   Future<void> changeStatus(String studentName, String status) async {
     final ok = await ApiService.updateAttendanceStatus(studentName, status);
 
@@ -44,12 +40,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
     );
 
-    setState(() {}); // refresh UI
+    setState(() {});
   }
 
-  // ------------------------------------------------------
-  // UI
-  // ------------------------------------------------------
+  // ----------------------- UI -------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -58,8 +52,35 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         title: const Text("Attendance Management"),
         backgroundColor: AppColors.primaryColor,
         foregroundColor: Colors.white,
-      ),
 
+        /// --------------- ADD STUDENT BUTTON ----------------
+        actions: [
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => AddStudentScreen()),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.add,
+                  size: 26,
+                  color: AppColors.primaryColor,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
@@ -79,8 +100,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         const CircleAvatar(
                           radius: 28,
                           backgroundColor: AppColors.primaryColor,
-                          child: Icon(Icons.person,
-                              size: 30, color: Colors.white),
+                          child:
+                              Icon(Icons.person, size: 30, color: Colors.white),
                         ),
 
                         const SizedBox(width: 15),
@@ -97,9 +118,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                   color: AppColors.textColor,
                                 ),
                               ),
-
                               const SizedBox(height: 5),
-
                               FutureBuilder<String?>(
                                 future:
                                     ApiService.getAttendanceStatus(s["name"]),
@@ -125,21 +144,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           ),
                         ),
 
+                        /// ---- Popup for editing ----
                         PopupMenuButton(
                           icon: const Icon(Icons.edit,
                               color: AppColors.primaryColor),
-                          onSelected: (value) =>
-                              changeStatus(s["name"], value),
+                          onSelected: (value) => changeStatus(s["name"], value),
                           itemBuilder: (context) => const [
                             PopupMenuItem(
                                 value: "PRESENT",
                                 child: Text("Mark as PRESENT")),
                             PopupMenuItem(
-                                value: "ABSENT",
-                                child: Text("Mark as ABSENT")),
+                                value: "ABSENT", child: Text("Mark as ABSENT")),
                             PopupMenuItem(
-                                value: "LATE",
-                                child: Text("Mark as LATE")),
+                                value: "LATE", child: Text("Mark as LATE")),
                           ],
                         ),
                       ],
