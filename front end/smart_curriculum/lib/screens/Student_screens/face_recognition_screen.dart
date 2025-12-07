@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:http/http.dart' as http;
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+
 import 'package:smart_curriculum/services/Student_service/student_api_service.dart';
 import 'package:smart_curriculum/screens/Student_screens/student_face_registration_screen.dart';
 
@@ -15,177 +17,159 @@ class FaceRecognitionScreen extends StatefulWidget {
 
 class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
   CameraController? _controller;
-  bool _isBusy = false;
+  late FaceDetector _faceDetector;
+
+  Timer? _timer;
+  bool _processing = false;
 
   String _status = "Initializing camera...";
   String _result = "";
 
-  late FaceDetector _faceDetector;
+  // Liveness states
+  bool leftDone = false;
+  bool rightDone = false;
+  bool smileDone = false;
+
+  int stage = 0;
 
   @override
   void initState() {
     super.initState();
-    _initializeCamera();
+    _initCamera();
+
     _faceDetector = FaceDetector(
       options: FaceDetectorOptions(
         enableClassification: true,
         enableTracking: true,
+        performanceMode: FaceDetectorMode.accurate,
       ),
     );
   }
 
-  Future<void> _initializeCamera() async {
+  Future<void> _initCamera() async {
     final cameras = await availableCameras();
-    final frontCamera = cameras.firstWhere(
-      (cam) => cam.lensDirection == CameraLensDirection.front,
+    final frontCam = cameras.firstWhere(
+          (c) => c.lensDirection == CameraLensDirection.front,
     );
 
-    _controller = CameraController(
-      frontCamera,
-      ResolutionPreset.medium,
-      enableAudio: false,
-    );
-
+    _controller = CameraController(frontCam, ResolutionPreset.medium, enableAudio: false);
     await _controller!.initialize();
 
-    setState(() => _status = "Camera ready. Press Capture.");
+    setState(() => _status = "Turn your head LEFT");
+
+    // SAFE periodic checking (every 500 ms)
+    _timer = Timer.periodic(const Duration(milliseconds: 600), (_) {
+      if (!_processing) {
+        _processing = true;
+        _captureFrame();
+      }
+    });
   }
 
-  Future<void> _captureAndRecognize() async {
-    if (_controller == null || !_controller!.value.isInitialized) return;
-
-    setState(() {
-      _isBusy = true;
-      _status = "Capturing face...";
-      _result = "";
-    });
+  Future<void> _captureFrame() async {
+    if (!mounted || _controller == null) return;
 
     try {
-      final file = await _controller!.takePicture();
+      final pic = await _controller!.takePicture();
 
-      /// Step 1 — Local ML Face Detection
-      final inputImage = InputImage.fromFilePath(file.path);
-      final faces = await _faceDetector.processImage(inputImage);
+      final input = InputImage.fromFilePath(pic.path);
+      final faces = await _faceDetector.processImage(input);
 
       if (faces.isEmpty) {
-        setState(() {
-          _isBusy = false;
-          _status = "❌ No face detected. Try again with better lighting.";
-        });
+        setState(() => _status = "Face not detected — hold steady");
+        _processing = false;
         return;
       }
 
-      /// Step 2 — Get student name
-      final studentName = ApiService.loggedInStudentName;
-      if (studentName == null || studentName.trim().isEmpty) {
-        setState(() {
-          _isBusy = false;
-          _status = "❌ Error: No logged-in student found.";
-          _result = "Please log in again.";
-        });
-        return;
+      final face = faces.first;
+      _evaluateLiveness(face);
+
+      if (stage == 3) {
+        _timer?.cancel();
+        await Future.delayed(const Duration(milliseconds: 300));
+        _verifyFace(pic.path);
       }
+    } catch (_) {}
 
-      /// Step 3 — Check if student already has face embedding
-      final faceExists = await ApiService.checkFaceExists(studentName);
+    _processing = false;
+  }
 
-      if (!faceExists) {
-        setState(() {
-          _isBusy = false;
-          _status = "⚠️ No face embedding found for $studentName";
-          _result = "Redirecting to face registration...";
-        });
+  void _evaluateLiveness(Face face) {
+    final yaw = face.headEulerAngleY ?? 0;
+    final smile = face.smilingProbability ?? 0.0;
 
-        await Future.delayed(const Duration(seconds: 1));
+    if (!leftDone && yaw < -15) {
+      leftDone = true;
+      stage = 1;
+      setState(() => _status = "✔ LEFT detected — Now turn RIGHT");
+      return;
+    }
 
-        if (!mounted) return;
+    if (leftDone && !rightDone && yaw > 15) {
+      rightDone = true;
+      stage = 2;
+      setState(() => _status = "✔ RIGHT detected — Now SMILE 😊");
+      return;
+    }
 
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => StudentFaceRegistrationScreen(studentName: studentName),
-          ),
-        );
+    if (leftDone && rightDone && !smileDone && smile > 0.65) {
+      smileDone = true;
+      stage = 3;
+      setState(() => _status = "✔ Liveness Passed 🎉 Verifying...");
+    }
+  }
 
-        return;
-      }
+  Future<void> _verifyFace(String path) async {
+    final studentName = ApiService.loggedInStudentName;
+    if (studentName == null) return;
 
-      /// Step 4 — Send image for recognition
-      setState(() => _status = "🔍 Sending for recognition...");
+    setState(() => _status = "Sending for recognition...");
 
-      final uri = Uri.parse(
-        "${ApiService.faceUrl}/face/recognize?name=${Uri.encodeQueryComponent(studentName)}",
+    final exists = await ApiService.checkFaceExists(studentName);
+    if (!exists) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => StudentFaceRegistrationScreen(studentName: studentName),
+        ),
       );
+      return;
+    }
 
-      final request = http.MultipartRequest('POST', uri);
-      request.files.add(
-        await http.MultipartFile.fromPath('file', file.path),
-      );
+    final uri = Uri.parse("${ApiService.faceUrl}/face/recognize?name=$studentName");
+    final req = http.MultipartRequest("POST", uri)
+      ..files.add(await http.MultipartFile.fromPath("file", path));
 
-      final response = await request.send();
-      final body = await response.stream.bytesToString();
-      final data = jsonDecode(body);
+    final res = await req.send();
+    final body = await res.stream.bytesToString();
+    final data = jsonDecode(body);
 
-      if (response.statusCode != 200) {
-        setState(() {
-          _status = "⚠️ Server error";
-          _result = data.toString();
-        });
-        return;
-      }
+    if (data["ok"] != true) {
+      setState(() => _result = "Server Error");
+      return;
+    }
 
-      if (data["ok"] != true) {
-        setState(() {
-          _status = "⚠️ Face service error";
-          _result = data.toString();
-        });
-        return;
-      }
+    bool ok = data["recognized"];
+    double score = data["score"] ?? 0.0;
 
-      final recognized = data["recognized"] == true;
-      final score = (data["score"] ?? 0.0).toStringAsFixed(3);
-
-      if (recognized) {
-        /// Matched → Mark PRESENT
-        setState(() {
-          _status = "✅ Face verified as $studentName";
-          _result = "Score: $score\nMarking PRESENT...";
-        });
-
-        final ok = await ApiService.markAttendance(studentName);
-
-        setState(() {
-          _result += ok
-              ? "\n🟢 Attendance marked PRESENT"
-              : "\n⚠️ Failed to update attendance";
-        });
-      } else {
-        /// Not matched → Mark ABSENT
-        setState(() {
-          _status = "❌ Face does NOT match $studentName";
-          _result = "Score: $score\nMarking ABSENT...";
-        });
-
-        final ok = await ApiService.markAbsent(studentName);
-
-        setState(() {
-          _result += ok
-              ? "\n🟠 Attendance marked ABSENT"
-              : "\n⚠️ Failed to update attendance";
-        });
-      }
-    } catch (e) {
+    if (ok) {
+      await ApiService.markAttendance(studentName);
       setState(() {
-        _status = "❌ Error occurred";
-        _result = e.toString();
+        _status = "🎉 Verified!";
+        _result = "Score: ${score.toStringAsFixed(3)}\nMarked PRESENT";
       });
-    } finally {
-      setState(() => _isBusy = false);
+    } else {
+      await ApiService.markAbsent(studentName);
+      setState(() {
+        _status = "❌ Not Matched";
+        _result = "Score: ${score.toStringAsFixed(3)}\nMarked ABSENT";
+      });
     }
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _controller?.dispose();
     _faceDetector.close();
     super.dispose();
@@ -195,7 +179,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Face Recognition"),
+        title: const Text("Face Recognition + Liveness"),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
       ),
@@ -207,44 +191,26 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
                 : CameraPreview(_controller!),
           ),
 
-          /// Bottom panel
           Container(
             padding: const EdgeInsets.all(16),
-            color: Colors.black87,
+            color: Colors.black,
             width: double.infinity,
             child: Column(
               children: [
                 Text(
                   _status,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
                   textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 18),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Text(
                   _result,
-                  style: const TextStyle(color: Colors.greenAccent),
                   textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-
-                ElevatedButton.icon(
-                  onPressed: _isBusy ? null : _captureAndRecognize,
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text("Capture & Verify"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
-                  ),
+                  style: const TextStyle(color: Colors.greenAccent, fontSize: 16),
                 ),
               ],
             ),
-          ),
+          )
         ],
       ),
     );
