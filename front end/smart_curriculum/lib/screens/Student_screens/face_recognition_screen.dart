@@ -168,7 +168,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
       await ApiService.markAbsent(studentName);
       setState(() {
         _status = "❌ Not Matched";
-        _result = "Score: ${score.toStringAsFixed(3)}\nMarked ABSENT";
+        _result = "Score: ${score.toStringAsFixed(3)}\n Try Again";
       });
     }
   }

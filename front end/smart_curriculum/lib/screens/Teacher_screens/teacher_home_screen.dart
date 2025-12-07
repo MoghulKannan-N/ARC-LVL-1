@@ -80,7 +80,18 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) async {
+          // Refresh stats when coming back from attendance
+          if (index == 0) {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AttendanceScreen()),
+            );
+            setState(() {});
+          } else {
+            setState(() => _currentIndex = index);
+          }
+        },
         selectedItemColor: AppColors.primaryColor,
         unselectedItemColor: AppColors.subtitleColor,
         items: const [
@@ -117,6 +128,30 @@ class TeacherHomeContent extends StatelessWidget {
       return "Beacon started successfully";
     } catch (e) {
       return "Error: $e";
+    }
+  }
+
+  // -------------------- Fetch Attendance Stats --------------------
+  Future<Map<String, int>> _fetchAttendanceStats() async {
+    try {
+      final allStudents = await teacher_api.ApiService.getAllStudents();
+      if (allStudents == null) {
+        return {"total": 0, "present": 0};
+      }
+
+      int total = allStudents.length;
+      int present = 0;
+
+      for (var student in allStudents) {
+        final status =
+            await teacher_api.ApiService.getAttendanceStatus(student["name"]);
+        if (status == "PRESENT") present++;
+      }
+
+      return {"total": total, "present": present};
+    } catch (e) {
+      debugPrint("Error fetching stats: $e");
+      return {"total": 0, "present": 0};
     }
   }
 
@@ -253,13 +288,31 @@ class TeacherHomeContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 40),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              StatCard(title: "Total Students", value: "0"),
-              StatCard(title: "Present Today", value: "0"),
-            ],
+
+          // ---------------- Dynamic Stats ----------------
+          FutureBuilder<Map<String, int>>(
+            future: _fetchAttendanceStats(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError || !snapshot.hasData) {
+                return const Center(child: Text("Failed to load stats"));
+              }
+
+              final stats = snapshot.data!;
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  StatCard(title: "Total Students", value: "${stats["total"]}"),
+                  StatCard(
+                      title: "Present Today", value: "${stats["present"]}"),
+                ],
+              );
+            },
           ),
+
           const SizedBox(height: 40),
           ElevatedButton.icon(
             onPressed: () => _showStudentNameDialog(context),
