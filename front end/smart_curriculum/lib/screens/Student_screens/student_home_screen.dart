@@ -27,7 +27,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     final screens = [
       ProfileScreen(studentName: widget.studentName),
       const BluetoothScreen(),
-      const AIAssistantScreen(),
+      const AiAssistantScreen(),
     ];
 
     return Scaffold(
@@ -127,7 +127,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     // These screens usually already handle scroll internally (avoid wrapping)
     final scrollSafeScreens = [
       const BluetoothScreen().runtimeType,
-      const AIAssistantScreen().runtimeType,
+      const AiAssistantScreen().runtimeType,
     ];
 
     if (scrollSafeScreens.contains(screen.runtimeType)) {

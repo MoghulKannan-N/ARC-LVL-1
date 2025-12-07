@@ -1,147 +1,140 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:smart_curriculum/utils/constants.dart';
-import 'package:smart_curriculum/models/Student_model/task_model.dart';
+import 'package:http/http.dart' as http;
+import 'package:smart_curriculum/config.dart';
+import 'package:smart_curriculum/services/Student_service/student_api_service.dart';
+import 'mini_session_player.dart';
+import 'ai_chatbot_screen.dart';
 
-/// AI Assistant screen showing personalized learning resources.
-class AIAssistantScreen extends StatelessWidget {
-  const AIAssistantScreen({super.key});
+class AiAssistantScreen extends StatefulWidget {
+  const AiAssistantScreen({super.key});
+
+  @override
+  State<AiAssistantScreen> createState() => _AiAssistantScreenState();
+}
+
+class _AiAssistantScreenState extends State<AiAssistantScreen> {
+  bool loading = false;
+  String currentTopic = "";
+  String resultText = "";
+
+  String get aiUrl => "$flask"; // flask backend
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProgress();
+  }
+
+  Future<void> _loadProgress() async {
+    final id = ApiService.loggedInStudentId;
+    if (id == null) return;
+
+    final url = Uri.parse("$aiUrl/progress_roadmap?student_id=$id");
+    final res = await http.get(url);
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      setState(() {
+        resultText = "Progress: ${data["progress"]}";
+      });
+    }
+  }
+
+  Future<void> _generateRoadmap() async {
+    final id = ApiService.loggedInStudentId;
+    if (id == null) return;
+
+    setState(() => loading = true);
+
+    final url = Uri.parse("$aiUrl/generate_roadmap");
+    final res = await http.post(url, body: {
+      "student_id": id.toString(),
+    });
+
+    setState(() => loading = false);
+
+    if (res.statusCode == 200) {
+      final data = jsonDecode(res.body);
+      setState(() {
+        currentTopic = data["topic"];
+        resultText = "Roadmap generated for: $currentTopic";
+      });
+    }
+  }
+
+  Future<void> _nextMiniSession() async {
+    final id = ApiService.loggedInStudentId;
+    if (id == null) return;
+
+    setState(() => loading = true);
+
+    final url = Uri.parse("$aiUrl/next_mini_session?student_id=$id");
+    final res = await http.get(url);
+
+    setState(() => loading = false);
+
+    if (res.statusCode == 200) {
+      final sessionData = jsonDecode(res.body);
+  
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          // FIX: changed data: to session:
+          builder: (_) => MiniSessionPlayer(session: sessionData),
+        ),
+      );
+    }
+  }
+
+  void _openChatbot() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AiChatbotScreen()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final List<Task> tasks = [
-      Task(
-        id: '1',
-        title: 'Security Fundamentals',
-        description: 'Learn the basics of cybersecurity',
-        type: 'Course',
-        duration: '2h 30m',
-        completed: false,
-      ),
-      Task(
-        id: '2',
-        title: 'Ethical Hacking',
-        description: 'Introduction to ethical hacking techniques',
-        type: 'Tutorial',
-        duration: '1h 15m',
-        completed: false,
-      ),
-      Task(
-        id: '3',
-        title: 'Network Security',
-        description: 'Securing network infrastructure',
-        type: 'Course',
-        duration: '1h 45m',
-        completed: false,
-      ),
-    ];
+    final studentName = ApiService.loggedInStudentName ?? "Student";
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            AppStrings.aiAssistant,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textColor,
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("AI Assistant — $studentName"),
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "AI Learning Assistant",
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.warningColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.warningColor),
+
+            const SizedBox(height: 20),
+
+            Text(resultText, style: TextStyle(fontSize: 16)),
+
+            const SizedBox(height: 20),
+
+            ElevatedButton(
+              onPressed: loading ? null : _generateRoadmap,
+              child: Text("Generate Roadmap"),
             ),
-            child: const Text(
-              AppStrings.freePeriodDetected,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textColor,
-              ),
-              textAlign: TextAlign.center,
+
+            ElevatedButton(
+              onPressed: loading ? null : _nextMiniSession,
+              child: Text("Next Mini Session"),
             ),
-          ),
-          const SizedBox(height: 24),
-          const Divider(),
-          const SizedBox(height: 16),
-          const Text(
-            "Welcome back, Student!",
-            style: TextStyle(fontSize: 18, color: AppColors.textColor),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            "Based on your interests and academic performance, we've prepared personalized learning resources for you.",
-            style: TextStyle(fontSize: 16, color: AppColors.subtitleColor),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            AppStrings.recommendedResources,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textColor,
+            ElevatedButton(
+              onPressed: _openChatbot,
+              child: Text("Open AI Chatbot"),
             ),
-          ),
-          const SizedBox(height: 24),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: tasks.length,
-            itemBuilder: (context, index) {
-              final task = tasks[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        task.title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        task.description,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: AppColors.subtitleColor,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Chip(
-                            label: Text(task.type),
-                            backgroundColor:
-                                AppColors.primaryColor.withOpacity(0.1),
-                          ),
-                          const Spacer(),
-                          Text(
-                            task.duration,
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: AppColors.subtitleColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
