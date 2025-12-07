@@ -16,28 +16,15 @@ public class AuthController {
     @Autowired
     private AuthService authService;
 
-    @Autowired
-    private StudentRepository studentRepo;
-
-    @PostMapping("/teacher/login")
-    public String teacherLogin(@RequestBody Map<String, String> body) {
-
-        String username = body.get("username");
-        String password = body.get("password");
-
-        System.out.println("Teacher login received: " + username);
-
-        return authService.loginTeacher(username, password);
-    }
-
-    // ⭐ UPDATED STUDENT LOGIN → Now returns JSON with id + name
+    // ---------------------------------------------------------
+    // STUDENT LOGIN — returns JSON with ID + Name
+    // ---------------------------------------------------------
     @PostMapping("/student/login")
     public Map<String, Object> studentLogin(@RequestBody Map<String, String> body) {
 
         String username = body.get("username");
         String password = body.get("password");
 
-        // Validate student
         Student student = authService.validateStudent(username, password);
 
         if (student == null) {
@@ -47,7 +34,6 @@ public class AuthController {
             );
         }
 
-        // SUCCESS → Flutter needs this
         return Map.of(
             "ok", true,
             "id", student.getId(),
@@ -56,11 +42,25 @@ public class AuthController {
         );
     }
 
+    // ---------------------------------------------------------
+    // TEACHER LOGIN
+    // ---------------------------------------------------------
+    @PostMapping("/teacher/login")
+    public String teacherLogin(@RequestBody Map<String, String> body) {
+
+        String username = body.get("username");
+        String password = body.get("password");
+
+        return authService.loginTeacher(username, password);
+    }
+
+    // ---------------------------------------------------------
+    // CHECK STUDENT EXISTS
+    // ---------------------------------------------------------
     @GetMapping("/check-student")
     public String checkStudentExists(@RequestParam String name) {
 
         boolean exists = authService.doesStudentExist(name);
-
         return exists ? "exists" : "not_found";
     }
 }
