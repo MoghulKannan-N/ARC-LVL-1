@@ -18,7 +18,7 @@ public class AuthService {
     @Autowired
     private TeacherRepository teacherRepo;
 
-    // ------------------ STUDENT LOGIN ---------------------
+    // ------------------ STUDENT LOGIN (OLD STRING METHOD) ---------------------
     public String loginStudent(String username, String password) {
 
         Optional<Student> opt = studentRepo.findByUsername(username);
@@ -33,6 +33,23 @@ public class AuthService {
         }
 
         return "Invalid credentials";
+    }
+
+    // ------------------ NEW: VALIDATE STUDENT & RETURN STUDENT OBJECT ---------------------
+    public Student validateStudent(String username, String password) {
+
+        Optional<Student> opt = studentRepo.findByUsername(username);
+        if (opt.isEmpty()) {
+            return null;
+        }
+
+        Student s = opt.get();
+
+        if (s.getPassword() != null && s.getPassword().equals(password)) {
+            return s;   // return student object
+        }
+
+        return null;
     }
 
     // ------------------ TEACHER LOGIN (DB BASED) ---------------------
