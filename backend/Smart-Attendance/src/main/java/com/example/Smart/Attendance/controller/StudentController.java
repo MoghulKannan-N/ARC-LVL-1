@@ -18,25 +18,54 @@ public class StudentController {
     private StudentRepository studentRepo;
 
     // ---------------------------------------------------------
-    // ✔ Fetch student profile by username (for login)
+    // ✔ FIXED: Return clean JSON for login (NOT Student object)
+    // Flutter needs: {id, name, username, teacherId}
     // ---------------------------------------------------------
     @GetMapping("/me")
-    public Student getProfile(@RequestParam String username) {
-        return studentRepo.findByUsername(username).orElse(null);
+    public Map<String, Object> getProfile(@RequestParam String username) {
+
+        Optional<Student> opt = studentRepo.findByUsername(username);
+        if (opt.isEmpty()) {
+            return Map.of("error", "Student not found");
+        }
+
+        Student s = opt.get();
+
+        return Map.of(
+                "id", s.getId(),
+                "name", s.getName(),
+                "username", s.getUsername(),
+                "teacherId", s.getTeacherId()
+        );
     }
 
     // ---------------------------------------------------------
-    // ✔ Fetch FULL student profile by name (for profile screen)
-    // Flutter calls: GET /api/student/profile/{studentName}
+    // ✔ Full profile for Flutter Profile Screen
     // ---------------------------------------------------------
     @GetMapping("/profile/{name}")
-    public Student getFullProfile(@PathVariable String name) {
-        return studentRepo.findByName(name).orElse(null);
+    public Map<String, Object> getFullProfile(@PathVariable String name) {
+
+        Optional<Student> opt = studentRepo.findByName(name);
+        if (opt.isEmpty()) {
+            return Map.of("error", "Student not found");
+        }
+
+        Student s = opt.get();
+
+        return Map.of(
+                "name", s.getName(),
+                "dateOfBirth", s.getDateOfBirth(),
+                "phoneNumber", s.getPhoneNumber(),
+                "strength", s.getStrength(),
+                "weakness", s.getWeakness(),
+                "interest", s.getInterest(),
+                "yearOfStudying", s.getYearOfStudying(),
+                "course", s.getCourse()
+        );
     }
 
     // ---------------------------------------------------------
-    // ✔ Update profile fields (DOB, phone, interest, strengths)
-    // Flutter calls this on SAVE
+    // ✔ Update profile (DOB, phone, course...)
     // ---------------------------------------------------------
     @PutMapping("/profile/{name}")
     public Map<String, Object> updateProfile(
@@ -50,27 +79,13 @@ public class StudentController {
 
         Student s = optionalStudent.get();
 
-        // Update fields ONLY if they exist in request
-        if (body.containsKey("dateOfBirth"))
-            s.setDateOfBirth((String) body.get("dateOfBirth"));
-
-        if (body.containsKey("phoneNumber"))
-            s.setPhoneNumber((String) body.get("phoneNumber"));
-
-        if (body.containsKey("strength"))
-            s.setStrength((String) body.get("strength"));
-
-        if (body.containsKey("weakness"))
-            s.setWeakness((String) body.get("weakness"));
-
-        if (body.containsKey("interest"))
-            s.setInterest((String) body.get("interest"));
-
-        if (body.containsKey("yearOfStudying"))
-            s.setYearOfStudying((String) body.get("yearOfStudying"));
-
-        if (body.containsKey("course"))
-            s.setCourse((String) body.get("course"));
+        if (body.containsKey("dateOfBirth")) s.setDateOfBirth((String) body.get("dateOfBirth"));
+        if (body.containsKey("phoneNumber")) s.setPhoneNumber((String) body.get("phoneNumber"));
+        if (body.containsKey("strength")) s.setStrength((String) body.get("strength"));
+        if (body.containsKey("weakness")) s.setWeakness((String) body.get("weakness"));
+        if (body.containsKey("interest")) s.setInterest((String) body.get("interest"));
+        if (body.containsKey("yearOfStudying")) s.setYearOfStudying((String) body.get("yearOfStudying"));
+        if (body.containsKey("course")) s.setCourse((String) body.get("course"));
 
         studentRepo.save(s);
 
@@ -86,7 +101,7 @@ public class StudentController {
     }
 
     // ---------------------------------------------------------
-    // ✔ Test JSON route
+    // ✔ Simple test endpoint
     // ---------------------------------------------------------
     @GetMapping("/test-json")
     public Map<String, Object> testJson() {
