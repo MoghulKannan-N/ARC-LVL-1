@@ -31,6 +31,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true, // ✅ allows resizing on keyboard open
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text(AppStrings.appName),
@@ -53,6 +54,9 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                     ),
                     ElevatedButton(
                       onPressed: () => Navigator.of(ctx).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryColor,
+                      ),
                       child: const Text('Logout'),
                     ),
                   ],
@@ -76,7 +80,9 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
           ),
         ],
       ),
-      body: _screens[_currentIndex],
+      body: SafeArea( // ✅ prevents overflow with status bar and insets
+        child: _screens[_currentIndex],
+      ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.primaryColor,
         onPressed: () {
@@ -132,77 +138,85 @@ class TeacherHomeContent extends StatelessWidget {
     }
   }
 
-  /// ✅ Fixed AlertDialog (small, scroll-safe, no overflow)
+  /// ✅ Overflow-safe, keyboard-safe AlertDialog
   void _showStudentNameDialog(BuildContext context) {
     final parentContext = context;
     final TextEditingController nameController = TextEditingController();
 
     showDialog(
       context: context,
-      builder: (dialogContext) => AnimatedPadding(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: const Text(
-            "Enter Student Name",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
+      barrierDismissible: true,
+      builder: (dialogContext) => Center(
+        child: SingleChildScrollView( // ✅ prevents overflow from keyboard
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom + 10,
+            left: 16,
+            right: 16,
           ),
-          content: TextField(
-            controller: nameController,
-            decoration: const InputDecoration(
-              labelText: "Student Name",
-              border: OutlineInputBorder(),
-              isDense: true, // 👈 makes the input box smaller like before
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-            textInputAction: TextInputAction.done,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryColor,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            title: const Text(
+              "Enter Student Name",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
               ),
-              onPressed: () async {
-                final name = nameController.text.trim();
-
-                if (name.isEmpty) {
-                  ScaffoldMessenger.of(parentContext).showSnackBar(
-                    const SnackBar(content: Text("Enter a valid name")),
-                  );
-                  return;
-                }
-
-                Navigator.pop(dialogContext);
-                final exists = await teacher_api.ApiService.checkStudentExists(name);
-
-                if (!exists) {
-                  ScaffoldMessenger.of(parentContext).showSnackBar(
-                    const SnackBar(content: Text("Student not found")),
-                  );
-                  return;
-                }
-
-                if (!parentContext.mounted) return;
-
-                Navigator.push(
-                  parentContext,
-                  MaterialPageRoute(
-                    builder: (_) => ConfigureSettingsScreen(studentName: name),
-                  ),
-                );
-              },
-              child: const Text("Continue"),
             ),
-          ],
+            content: TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: "Student Name",
+                border: OutlineInputBorder(),
+                isDense: true, // 👈 smaller input box
+              ),
+              textInputAction: TextInputAction.done,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                ),
+                onPressed: () async {
+                  final name = nameController.text.trim();
+
+                  if (name.isEmpty) {
+                    ScaffoldMessenger.of(parentContext).showSnackBar(
+                      const SnackBar(content: Text("Enter a valid name")),
+                    );
+                    return;
+                  }
+
+                  Navigator.pop(dialogContext);
+                  final exists =
+                      await teacher_api.ApiService.checkStudentExists(name);
+
+                  if (!exists) {
+                    ScaffoldMessenger.of(parentContext).showSnackBar(
+                      const SnackBar(content: Text("Student not found")),
+                    );
+                    return;
+                  }
+
+                  if (!parentContext.mounted) return;
+
+                  Navigator.push(
+                    parentContext,
+                    MaterialPageRoute(
+                      builder: (_) => ConfigureSettingsScreen(studentName: name),
+                    ),
+                  );
+                },
+                child: const Text("Continue"),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -248,87 +262,90 @@ class TeacherHomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 40),
-          const Text(
-            AppStrings.appName,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primaryColor,
+    return SafeArea(
+      child: SingleChildScrollView( // ✅ prevents screen overflow vertically
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SizedBox(height: 40),
+            const Text(
+              AppStrings.appName,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryColor,
+              ),
             ),
-          ),
-          const Divider(height: 40),
-          Center(
-            child: GestureDetector(
-              onTap: () => _showSessionSelectionDialog(context),
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryColor,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryColor.withOpacity(0.4),
-                      blurRadius: 10,
-                      spreadRadius: 5,
-                    ),
-                  ],
+            const Divider(height: 40),
+            Center(
+              child: GestureDetector(
+                onTap: () => _showSessionSelectionDialog(context),
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryColor,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primaryColor.withOpacity(0.4),
+                        blurRadius: 10,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                  ),
+                  child:
+                      const Icon(Icons.bluetooth, size: 60, color: Colors.white),
                 ),
-                child: const Icon(Icons.bluetooth, size: 60, color: Colors.white),
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Enable Bluetooth',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textColor,
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Tap the Bluetooth icon to start attendance',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: AppColors.subtitleColor,
-            ),
-          ),
-          const SizedBox(height: 40),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              StatCard(title: 'Total Students', value: '0'),
-              StatCard(title: 'Present Today', value: '0'),
-            ],
-          ),
-          const SizedBox(height: 40),
-          ElevatedButton.icon(
-            onPressed: () => _showStudentNameDialog(context),
-            icon: const Icon(Icons.settings, color: Colors.white),
-            label: const Text(
-              "Configure Settings",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 20),
+            const Text(
+              'Enable Bluetooth',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textColor,
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            const Text(
+              'Tap the Bluetooth icon to start attendance',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: AppColors.subtitleColor,
+              ),
+            ),
+            const SizedBox(height: 40),
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                StatCard(title: 'Total Students', value: '0'),
+                StatCard(title: 'Present Today', value: '0'),
+              ],
+            ),
+            const SizedBox(height: 40),
+            ElevatedButton.icon(
+              onPressed: () => _showStudentNameDialog(context),
+              icon: const Icon(Icons.settings, color: Colors.white),
+              label: const Text(
+                "Configure Settings",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -362,7 +379,8 @@ class StatCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               title,
-              style: const TextStyle(fontSize: 14, color: AppColors.subtitleColor),
+              style:
+                  const TextStyle(fontSize: 14, color: AppColors.subtitleColor),
             ),
           ],
         ),
@@ -418,20 +436,22 @@ class _BluetoothTimerDialogState extends State<BluetoothTimerDialog> {
 
     return AlertDialog(
       title: Text('${widget.sessionType} - Bluetooth Beacon'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('${widget.sessionType} beacon will run for 2 minutes'),
-          const SizedBox(height: 20),
-          Text(
-            '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primaryColor,
+      content: SingleChildScrollView( // ✅ ensures dialog never overflows
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('${widget.sessionType} beacon will run for 2 minutes'),
+            const SizedBox(height: 20),
+            Text(
+              '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryColor,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
       actions: [
         TextButton(

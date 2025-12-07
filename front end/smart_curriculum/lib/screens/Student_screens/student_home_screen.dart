@@ -10,7 +10,6 @@ import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.da
 import 'package:smart_curriculum/screens/auth/role_selection_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// 🧠 Student dashboard with bottom navigation for profile, attendance, AI assistant.
 class StudentHomeScreen extends StatefulWidget {
   final String studentName;
 
@@ -32,6 +31,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     ];
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: const Text("Student Dashboard"),
@@ -44,22 +44,30 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             onPressed: () async {
               final confirm = await showDialog<bool>(
                 context: context,
+                barrierDismissible: true,
                 builder: (ctx) => AlertDialog(
-                  title: const Text('Logout'),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  title: const Text('Logout',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
                   content: const Text('Are you sure you want to log out?'),
                   actions: [
                     TextButton(
                         onPressed: () => Navigator.of(ctx).pop(false),
                         child: const Text('Cancel')),
                     ElevatedButton(
-                        onPressed: () => Navigator.of(ctx).pop(true),
-                        child: const Text('Logout')),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryColor,
+                      ),
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      child: const Text('Logout'),
+                    ),
                   ],
                 ),
               );
 
               if (confirm == true) {
-                // 🧹 Clear both student and teacher state for safety
                 await student_api.ApiService.clearLoginState();
                 await teacher_api.ApiService.clearLoginState();
 
@@ -68,11 +76,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
                 if (!mounted) return;
 
-                // 🔁 Clean reset to Role Selection screen
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(
-                      builder: (_) => const RoleSelectionScreen()),
+                    builder: (_) => const RoleSelectionScreen(),
+                  ),
                   (route) => false,
                 );
               }
@@ -80,19 +88,63 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
         ],
       ),
-      body: screens[index],
+
+      // ✅ Safe + Orientation + AI Screen Compatible Body
+      body: SafeArea(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 250),
+          child: _buildAdaptiveBody(screens[index]),
+        ),
+      ),
+
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: index,
         onTap: (i) => setState(() => index = i),
         selectedItemColor: AppColors.primaryColor,
         unselectedItemColor: AppColors.subtitleColor,
+        elevation: 8,
+        type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
           BottomNavigationBarItem(
-              icon: Icon(Icons.assistant), label: "AI Assistant"),
+            icon: Icon(Icons.person),
+            label: "Profile",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: "Home",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.assistant),
+            label: "AI Assistant",
+          ),
         ],
       ),
+    );
+  }
+
+  /// 🧩 Smart Wrapper: prevents overflow on rotation but skips double scroll
+  Widget _buildAdaptiveBody(Widget screen) {
+    // These screens usually already handle scroll internally (avoid wrapping)
+    final scrollSafeScreens = [
+      const BluetoothScreen().runtimeType,
+      const AIAssistantScreen().runtimeType,
+    ];
+
+    if (scrollSafeScreens.contains(screen.runtimeType)) {
+      return screen; // render as-is
+    }
+
+    // Wrap only non-scrollable layouts
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(child: screen),
+          ),
+        );
+      },
     );
   }
 }

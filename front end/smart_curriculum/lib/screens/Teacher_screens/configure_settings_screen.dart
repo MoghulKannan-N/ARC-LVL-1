@@ -13,14 +13,14 @@ class ConfigureSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: true, // ✅ Prevents overflow when keyboard opens
       appBar: AppBar(
         title: const Text("Configure Settings"),
         backgroundColor: AppColors.primaryColor,
         foregroundColor: Colors.white,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: SingleChildScrollView( // ✅ Handles smaller screens safely
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -35,6 +35,7 @@ class ConfigureSettingsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
+              // 🧠 Face Configuration Option
               _buildOption(
                 icon: Icons.face,
                 title: "Configure Face",
@@ -50,6 +51,7 @@ class ConfigureSettingsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
+              // 🔵 Bluetooth Configuration Option
               _buildOption(
                 icon: Icons.settings_bluetooth,
                 title: "Configure Bluetooth",
@@ -59,14 +61,14 @@ class ConfigureSettingsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
+              // 📱 Device Binding Option
               _buildOption(
                 icon: Icons.phonelink_setup,
                 title: "Configure Device Binding",
                 onTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content:
-                          Text("Device Binding feature coming soon!"),
+                      content: Text("Device Binding feature coming soon!"),
                       duration: Duration(seconds: 1),
                     ),
                   );
@@ -79,6 +81,7 @@ class ConfigureSettingsScreen extends StatelessWidget {
     );
   }
 
+  /// 🔧 Reusable settings option card
   Widget _buildOption({
     required IconData icon,
     required String title,
@@ -103,13 +106,13 @@ class ConfigureSettingsScreen extends StatelessWidget {
     );
   }
 
-  /// ✅ Final Overflow-Proof Bluetooth Dialog
+  /// ✅ Overflow-proof, lifted Bluetooth dialog
   void _showBluetoothDialog(BuildContext context) {
     final TextEditingController _controller = TextEditingController();
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
+      isScrollControlled: true, // ✅ supports keyboard safely
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -117,94 +120,95 @@ class ConfigureSettingsScreen extends StatelessWidget {
       builder: (context) {
         return Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 40, // ✅ lift above bottom
             left: 24,
             right: 24,
             top: 24,
           ),
-          child: Wrap(
-            children: [
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      height: 4,
-                      width: 50,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(20),
-                      ),
+          child: SingleChildScrollView( // ✅ avoids content overflow
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 🩵 Top grab bar for visual appeal
+                Center(
+                  child: Container(
+                    height: 4,
+                    width: 50,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(20),
                     ),
                   ),
-                  const Text(
-                    "Enter Bluetooth Device Name",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: AppColors.primaryColor,
+                ),
+                const Text(
+                  "Enter Bluetooth Device Name",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: AppColors.primaryColor,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 🔠 Input Field
+                TextField(
+                  controller: _controller,
+                  decoration: InputDecoration(
+                    labelText: "Device Name",
+                    labelStyle: const TextStyle(color: AppColors.primaryColor),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(
+                          color: AppColors.primaryColor, width: 2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide:
+                          const BorderSide(color: AppColors.primaryColor),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      labelText: "Device Name",
-                      labelStyle:
-                          const TextStyle(color: AppColors.primaryColor),
-                      focusedBorder: OutlineInputBorder(
-                        borderSide: const BorderSide(
-                            color: AppColors.primaryColor, width: 2),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderSide:
-                            const BorderSide(color: AppColors.primaryColor),
-                        borderRadius: BorderRadius.circular(10),
+                ),
+                const SizedBox(height: 24),
+
+                // 🧭 Action Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        "Cancel",
+                        style: TextStyle(color: Colors.grey),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text(
-                          "Cancel",
-                          style: TextStyle(color: Colors.grey),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryColor,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        onPressed: () {
-                          final name = _controller.text.trim();
-                          if (name.isNotEmpty) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content:
-                                    Text("Bluetooth set to: $name"),
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                        },
-                        child: const Text("Save"),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                ],
-              ),
-            ],
+                      onPressed: () {
+                        final name = _controller.text.trim();
+                        if (name.isNotEmpty) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text("Bluetooth set to: $name"),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      },
+                      child: const Text("Save"),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
           ),
         );
       },
