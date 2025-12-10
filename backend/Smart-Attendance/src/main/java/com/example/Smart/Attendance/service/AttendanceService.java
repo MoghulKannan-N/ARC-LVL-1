@@ -15,28 +15,29 @@ import java.time.LocalDateTime;
 public class AttendanceService {
 
     @Autowired
-    AttendanceRepository attendanceRepo;
+    private AttendanceRepository attendanceRepo;
 
     @Autowired
-    StudentRepository studentRepo;
+    private StudentRepository studentRepo;
 
     @Autowired
-    TeacherRepository teacherRepo;
+    private TeacherRepository teacherRepo;
 
-    // ✔ MARK ATTENDANCE (student-side → teacherName="SYSTEM")
+    // MARK OR UPDATE ATTENDANCE (Student or Teacher)
     public Attendance markAttendance(String studentName, String status, String teacherName) {
 
         Student student = studentRepo.findByName(studentName)
                 .orElseThrow(() -> new RuntimeException("Student not found: " + studentName));
 
-        Attendance att = new Attendance();
+        Attendance att = attendanceRepo.findById(student.getId()).orElse(new Attendance());
         att.setStudentId(student.getId());
         att.setStudentName(student.getName());
+        att.setStatus(status);
+        att.setMarkedAt(LocalDateTime.now());
 
         if (!"SYSTEM".equals(teacherName)) {
             Teacher teacher = teacherRepo.findByName(teacherName)
                     .orElseThrow(() -> new RuntimeException("Teacher not found: " + teacherName));
-
             att.setTeacherId(teacher.getId());
             att.setTeacherName(teacher.getName());
         } else {
@@ -44,36 +45,17 @@ public class AttendanceService {
             att.setTeacherName("SYSTEM");
         }
 
-        att.setStatus(status);
-        att.setMarkedAt(LocalDateTime.now());
-        return attendanceRepo.save(att);
+        return attendanceRepo.save(att); // 🔹 save() updates same row
     }
 
-    // GET LATEST STATUS
-    public Attendance getLatestAttendance(String studentName) {
-        return attendanceRepo.findTopByStudentNameOrderByMarkedAtDesc(studentName)
+    // GET CURRENT ATTENDANCE STATUS
+    public Attendance getAttendance(String studentName) {
+        return attendanceRepo.findByStudentName(studentName)
                 .orElse(null);
     }
 
-    // ✔ TEACHER MANUAL UPDATE
+    // MANUAL UPDATE BY TEACHER
     public Attendance updateAttendance(String studentName, String newStatus, String teacherName) {
-
-        Student student = studentRepo.findByName(studentName)
-                .orElseThrow(() -> new RuntimeException("Student not found: " + studentName));
-
-        Teacher teacher = teacherRepo.findByName(teacherName)
-                .orElseThrow(() -> new RuntimeException("Teacher not found: " + teacherName));
-
-        Attendance latest = attendanceRepo.findTopByStudentNameOrderByMarkedAtDesc(studentName)
-                .orElse(new Attendance());
-
-        latest.setStudentId(student.getId());
-        latest.setStudentName(student.getName());
-        latest.setTeacherId(teacher.getId());
-        latest.setTeacherName(teacher.getName());
-        latest.setStatus(newStatus);
-        latest.setMarkedAt(LocalDateTime.now());
-
-        return attendanceRepo.save(latest);
+        return markAttendance(studentName, newStatus, teacherName);
     }
 }

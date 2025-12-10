@@ -8,37 +8,57 @@ import java.time.LocalDateTime;
 public class Attendance {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long studentId; // 🔹 Primary Key — one record per student
 
-    private Long studentId;
+    @Column(nullable = false)
     private String studentName;
+
+    private String status; // PRESENT / ABSENT / LATE etc.
+    private LocalDateTime markedAt = LocalDateTime.now();
 
     private Long teacherId;
     private String teacherName;
 
-    private String status;
+    // --- Getters and Setters ---
+    public Long getStudentId() {
+        return studentId;
+    }
+    public void setStudentId(Long studentId) {
+        this.studentId = studentId;
+    }
 
-    private LocalDateTime markedAt = LocalDateTime.now();
+    public String getStudentName() {
+        return studentName;
+    }
+    public void setStudentName(String studentName) {
+        this.studentName = studentName;
+    }
 
-    // getters and setters
-    public Long getId() { return id; }
+    public String getStatus() {
+        return status;
+    }
+    public void setStatus(String status) {
+        this.status = status;
+    }
 
-    public Long getStudentId() { return studentId; }
-    public void setStudentId(Long studentId) { this.studentId = studentId; }
+    public LocalDateTime getMarkedAt() {
+        return markedAt;
+    }
+    public void setMarkedAt(LocalDateTime markedAt) {
+        this.markedAt = markedAt;
+    }
 
-    public String getStudentName() { return studentName; }
-    public void setStudentName(String studentName) { this.studentName = studentName; }
+    public Long getTeacherId() {
+        return teacherId;
+    }
+    public void setTeacherId(Long teacherId) {
+        this.teacherId = teacherId;
+    }
 
-    public Long getTeacherId() { return teacherId; }
-    public void setTeacherId(Long teacherId) { this.teacherId = teacherId; }
-
-    public String getTeacherName() { return teacherName; }
-    public void setTeacherName(String teacherName) { this.teacherName = teacherName; }
-
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
-
-    public LocalDateTime getMarkedAt() { return markedAt; }
-    public void setMarkedAt(LocalDateTime markedAt) { this.markedAt = markedAt; }
+    public String getTeacherName() {
+        return teacherName;
+    }
+    public void setTeacherName(String teacherName) {
+        this.teacherName = teacherName;
+    }
 }

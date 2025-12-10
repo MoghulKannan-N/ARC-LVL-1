@@ -15,23 +15,23 @@ public class AttendanceController {
     @Autowired
     private AttendanceService attendanceService;
 
-    // ✔ STUDENT MARK ATTENDANCE (no teacherName required)
+    // ✔ STUDENT MARK ATTENDANCE
     @PostMapping("/mark")
-    public Attendance mark(@RequestBody Map<String, String> req) {
+    public Attendance markAttendance(@RequestBody Map<String, String> req) {
         return attendanceService.markAttendance(
                 req.get("studentName"),
                 req.get("status"),
-                "SYSTEM"        // teacherName auto-set
+                "SYSTEM"
         );
     }
 
-    // GET LATEST STATUS
+    // ✔ GET CURRENT STATUS
     @GetMapping("/status")
     public Attendance getStatus(@RequestParam String studentName) {
-        return attendanceService.getLatestAttendance(studentName);
+        return attendanceService.getAttendance(studentName);
     }
 
-    // ✔ TEACHER MANUAL UPDATE (teacherName required)
+    // ✔ TEACHER UPDATE ATTENDANCE
     @PostMapping("/update")
     public Attendance update(@RequestBody Map<String, String> body) {
         return attendanceService.updateAttendance(
