@@ -77,62 +77,60 @@ class ApiService {
   // STUDENT LOGIN
   // ---------------------------------------------------------
   static Future<bool> studentLogin(String username, String password) async {
-    final url = Uri.parse("$springUrl/auth/student/login");
+  final url = Uri.parse("$springUrl/auth/student/login");
 
-    try {
-      final res = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "username": username.trim(),
-          "password": password.trim(),
-        }),
-      );
+  try {
+    final res = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "username": username.trim(),
+        "password": password.trim(),
+      }),
+    );
 
-      print("🔹 Login response code: ${res.statusCode}");
-      print("🔹 Login response body: ${res.body}");
+    print("🔹 Login response code: ${res.statusCode}");
+    print("🔹 Login response body: ${res.body}");
 
-      if (res.statusCode != 200) return false;
+    if (res.statusCode != 200) return false;
 
-      String raw = res.body.trim();
-      bool ok = false;
+    final data = jsonDecode(res.body);
 
-      try {
-        final json = jsonDecode(raw);
-        if (json is Map && json["ok"] == true) ok = true;
-      } catch (_) {
-        if (raw.toLowerCase().contains("student login successful")) ok = true;
-      }
-
-      if (!ok) return false;
-
-      loggedInUsername = username;
-
-      // Fetch basic profile
-      final profile = await getStudentProfile();
-
-      if (profile != null) {
-        if (profile["name"] != null) {
-          loggedInStudentName = profile["name"].toString();
-        }
-
-        if (profile["id"] != null) {                        // ✅ FIXED
-          loggedInStudentId = int.tryParse(profile["id"].toString());
-        }
-      }
-
-      // Face registration status
-      if (loggedInStudentName != null) {
-        isFaceRegistered = await checkFaceExists(loggedInStudentName!);
-      }
-
-      await saveLoginState();
-      return true;
-    } catch (e) {
-      print("❌ studentLogin error: $e");
+    // ------------------------------
+    // Login failed
+    // ------------------------------
+    if (data["ok"] != true) {
       return false;
     }
+
+    // ------------------------------
+    // SUCCESS — read ID & NAME DIRECTLY
+    // (DO NOT call /student/me)
+    // ------------------------------
+    loggedInUsername = data["username"];
+    loggedInStudentName = data["name"];
+    loggedInStudentId = data["id"];   // <-- IMPORTANT FIX
+
+    print("🎯 Student Login Successful");
+    print("ID: $loggedInStudentId");
+    print("Name: $loggedInStudentName");
+
+    // ------------------------------
+    // Check if face is registered
+    // ------------------------------
+    if (loggedInStudentName != null) {
+      isFaceRegistered = await checkFaceExists(loggedInStudentName!);
+    }
+
+    // Save to SharedPreferences
+    await saveLoginState();
+
+    return true;
+  } catch (e) {
+    print("❌ studentLogin error: $e");
+    return false;
   }
+}
 
   // ---------------------------------------------------------
   // CHECK IF FACE EXISTS

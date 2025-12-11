@@ -7,11 +7,10 @@ import jakarta.persistence.*;
 public class Profile {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long id; // same as Student.id — shared primary key
 
     @Column(nullable = false)
-    private String studentName; // Already linked with student logic
+    private String name; // same as Student.name
 
     private String dateOfBirth;
     private String phoneNumber;
@@ -21,7 +20,20 @@ public class Profile {
     private String yearOfStudying;
     private String course;
 
-    // --- Getters and Setters ---
+    // One-to-one mapping with Student entity
+    @OneToOne
+    @MapsId
+    @JoinColumn(name = "id") // links to Student.id
+    private Student student;
+
+    public Profile() {}
+
+    public Profile(Student student) {
+        this.student = student;
+        this.name = student.getName();
+    }
+
+    // Getters and Setters
     public Long getId() {
         return id;
     }
@@ -30,12 +42,12 @@ public class Profile {
         this.id = id;
     }
 
-    public String getStudentName() {
-        return studentName;
+    public String getName() {
+        return name;
     }
 
-    public void setStudentName(String studentName) {
-        this.studentName = studentName;
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getDateOfBirth() {
@@ -92,5 +104,14 @@ public class Profile {
 
     public void setCourse(String course) {
         this.course = course;
+    }
+
+    public Student getStudent() {
+        return student;
+    }
+
+    public void setStudent(Student student) {
+        this.student = student;
+        this.name = student.getName(); // keep names synced
     }
 }

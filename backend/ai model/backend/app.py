@@ -18,6 +18,25 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from openai import OpenAI
+class RoadmapOut(BaseModel):
+    student_id: int
+    topic: str
+    roadmap: List[dict]
+
+class MiniSessionOut(BaseModel):
+    mini_session_id: int
+    parent_subtopic: str
+    mini_subtopic: str
+    content: Optional[str] = None
+    resources: List[str] = []
+    videos: List[str] = []
+    quiz: List[dict] = []
+
+class ProgressOut(BaseModel):
+    student_id: int
+    completed: int
+    total: int
+    progress: str
 
 load_dotenv()
 
@@ -326,30 +345,86 @@ def reset_student(student_id: int = Form(...)):
 # ============================================================
 # GENERATE ROADMAP
 # ============================================================
+# ============================================================
+# GENERATE ROADMAP — AI DECIDES TOPIC USING STRENGTH + WEAKNESS + INTEREST
+# ============================================================
+
 @app.post("/generate_roadmap", response_model=RoadmapOut)
-def generate_roadmap(student_id: int = Form(...), topic: str = Form(...)):
+def generate_roadmap(student_id: int = Form(...)):
 
-    prompt = (
-        f"Break the topic '{topic}' into a complete roadmap with major subtopics. "
-        "Return a JSON array named 'roadmap'."
+    # --------------------------------------------
+    # 1. Get student profile
+    # --------------------------------------------
+    student = query_db("""
+        SELECT student_name, strength, weakness, interest, course, year_of_studying
+        FROM student_profiles
+        WHERE id=%s
+    """, (student_id,), one=True)
+
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    strength = student.get("strength", "")
+    weakness = student.get("weakness", "")
+    interest = student.get("interest", "")
+    course = student.get("course", "")
+    year = student.get("year_of_studying", "")
+
+    # --------------------------------------------
+    # 2. Ask AI to choose the BEST topic for student
+    # --------------------------------------------
+    topic_prompt = f"""
+    You are an expert academic planner.
+
+    Based on this student's details, choose ONE best learning topic they should study next:
+
+    Strengths: {strength}
+    Weaknesses: {weakness}
+    Interests: {interest}
+    Course: {course}
+    Year of studying: {year}
+
+    Rules:
+    - Choose only ONE topic.
+    - Topic must improve weakness.
+    - Topic must align with student's interests.
+    - Topic must help future skills for their course.
+    - Return ONLY the topic name, no explanation.
+    """
+
+    topic = openai_text(topic_prompt, model=MODEL_PLANNER, max_tokens=30).strip()
+
+    if not topic:
+        topic = "Foundational Skills Improvement"
+
+    # --------------------------------------------
+    # 3. Generate roadmap from chosen topic
+    # --------------------------------------------
+    roadmap_prompt = (
+        f"Break the topic '{topic}' into 6–10 clear subtopics. "
+        "Return JSON array named 'roadmap'. Each item must contain:"
+        "subtopic, description, and optional resources list."
     )
-    schema = '{"roadmap":[{"subtopic":str,"description":str}]}'
 
-    ai_roadmap = openai_json(prompt, schema, model=MODEL_PLANNER).get("roadmap", [])
+    schema = '{"roadmap":[{"subtopic":str,"description":str,"resources":[str]}]}'
+
+    ai_roadmap = openai_json(roadmap_prompt, schema, model=MODEL_PLANNER).get("roadmap", [])
     if not ai_roadmap:
-        ai_roadmap = [{"subtopic": f"{topic} Basics"}]
+        ai_roadmap = [{"subtopic": f"{topic} Basics", "description": "Introduction", "resources": []}]
 
-    # Determine next position
+    # --------------------------------------------
+    # 4. Insert roadmap into DB
+    # --------------------------------------------
     row = query_db("SELECT MAX(position) AS mx FROM roadmap WHERE student_id=%s", (student_id,), one=True)
     start_position = (row["mx"] + 1) if row and row["mx"] is not None else 1
 
-    # Insert roadmap rows
     conn = get_conn()
     cur = conn.cursor()
+
     for i, item in enumerate(ai_roadmap):
         cur.execute("""
             INSERT INTO roadmap (student_id, topic, subtopic, resources, position, status, parent_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s,%s,%s,%s,%s,%s,%s)
         """, (
             student_id,
             topic,
@@ -359,10 +434,27 @@ def generate_roadmap(student_id: int = Form(...), topic: str = Form(...)):
             "pending",
             None
         ))
+
     conn.commit()
     conn.close()
 
-    return {"student_id": student_id, "topic": topic, "roadmap": ai_roadmap}
+    # --------------------------------------------
+    # 5. Update student's current topic in student_learning_status
+    # --------------------------------------------
+    query_db("""
+        INSERT INTO student_learning_status (student_id, current_topic, progress)
+        VALUES (%s,%s,%s)
+        ON CONFLICT (student_id)
+        DO UPDATE SET current_topic = EXCLUDED.current_topic, last_updated = NOW()
+    """, (student_id, topic, 0))
+
+    # Return final API response
+    return {
+        "student_id": student_id,
+        "topic": topic,
+        "roadmap": ai_roadmap
+    }
+
 
 
 # ============================================================

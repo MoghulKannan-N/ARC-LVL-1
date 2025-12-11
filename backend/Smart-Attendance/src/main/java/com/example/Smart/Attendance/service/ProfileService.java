@@ -1,11 +1,11 @@
 package com.example.Smart.Attendance.service;
 
 import com.example.Smart.Attendance.model.Profile;
+import com.example.Smart.Attendance.model.Student;
 import com.example.Smart.Attendance.repository.ProfileRepository;
+import com.example.Smart.Attendance.repository.StudentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.Optional;
 
 @Service
 public class ProfileService {
@@ -13,18 +13,38 @@ public class ProfileService {
     @Autowired
     private ProfileRepository profileRepository;
 
+    @Autowired
+    private StudentRepository studentRepository;
+
+    // ✅ Get or create profile by student name
     public Profile getProfileByName(String studentName) {
-        return profileRepository.findByStudentName(studentName);
+        Student student = studentRepository.findByName(studentName)
+                .orElseThrow(() -> new RuntimeException("Student not found: " + studentName));
+
+        // Try to find an existing profile
+        return profileRepository.findById(student.getId())
+                .orElseGet(() -> {
+                    // If not found, create a new linked profile
+                    Profile newProfile = new Profile(student);
+                    newProfile.setStudent(student);
+                    newProfile.setName(student.getName());
+                    return profileRepository.save(newProfile);
+                });
     }
 
+    // ✅ Update profile for given student
     public Profile updateProfile(String studentName, Profile updatedProfile) {
-        Profile existingProfile = profileRepository.findByStudentName(studentName);
-        if (existingProfile == null) {
-            // create a new one if not found
-            return profileRepository.save(updatedProfile);
-        }
+        Student student = studentRepository.findByName(studentName)
+                .orElseThrow(() -> new RuntimeException("Student not found: " + studentName));
 
-        // Update fields
+        Profile existingProfile = profileRepository.findById(student.getId())
+                .orElse(new Profile(student));
+
+        // Link to student — REQUIRED for @MapsId
+        existingProfile.setStudent(student);
+        existingProfile.setName(student.getName());
+
+        // Update editable fields
         existingProfile.setDateOfBirth(updatedProfile.getDateOfBirth());
         existingProfile.setPhoneNumber(updatedProfile.getPhoneNumber());
         existingProfile.setStrength(updatedProfile.getStrength());

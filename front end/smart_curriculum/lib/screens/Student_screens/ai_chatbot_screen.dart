@@ -1,8 +1,11 @@
+// lib/screens/Student_screens/ai_chatbot_screen.dart
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:smart_curriculum/config.dart';
 import 'package:smart_curriculum/services/Student_service/student_api_service.dart';
+import 'package:smart_curriculum/utils/constants.dart';
 
 class AiChatbotScreen extends StatefulWidget {
   const AiChatbotScreen({super.key});
@@ -13,56 +16,57 @@ class AiChatbotScreen extends StatefulWidget {
 
 class _AiChatbotScreenState extends State<AiChatbotScreen> {
   final List<Map<String, String>> messages = [];
-  final TextEditingController _controller = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
+  final TextEditingController controller = TextEditingController();
+  final ScrollController scroll = ScrollController();
 
-  bool isSending = false;
+  bool sending = false;
+  bool aiTyping = false;
 
-  String get aiUrl => "$flask/chatbot";
+  String get apiUrl => "$aiBase/chatbot";
 
   @override
   void initState() {
     super.initState();
 
-    print("---------------------------------------");
-    print(" Chatbot Screen Opened");
-    print(" Student ID: ${ApiService.loggedInStudentId}");
-    print(" Student Name: ${ApiService.loggedInStudentName}");
-    print("---------------------------------------");
+    final name = ApiService.loggedInStudentName ?? "Student";
 
-    // Add greeting
     messages.add({
       "sender": "bot",
-      "text": "Hello ${ApiService.loggedInStudentName}! 👋\nI'm your AI Learning Assistant. How can I help you today?"
+      "text":
+          "👋 Hello $name, I'm your AI learning assistant.\nAsk me anything about your topics!"
     });
   }
 
-  Future<void> sendMessage() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
+  // -------------------------------------------------------------------
+  // SEND MESSAGE TO AI
+  // -------------------------------------------------------------------
+  Future<void> sendMsg() async {
+    final text = controller.text.trim();
+    if (text.isEmpty || sending) return;
 
     setState(() {
+      sending = true;
+      aiTyping = true;
       messages.add({"sender": "user", "text": text});
-      isSending = true;
     });
 
-    _controller.clear();
+    controller.clear();
     scrollToBottom();
 
     try {
-      final url = Uri.parse(aiUrl);
-
       final res = await http.post(
-        url,
+        Uri.parse(apiUrl),
         body: {"message": text},
       );
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        String reply = data["reply"] ?? "I couldn't understand that.";
 
         setState(() {
-          messages.add({"sender": "bot", "text": reply});
+          messages.add({
+            "sender": "bot",
+            "text": data["reply"] ?? "I couldn't understand that."
+          });
         });
       } else {
         setState(() {
@@ -78,37 +82,53 @@ class _AiChatbotScreenState extends State<AiChatbotScreen> {
       });
     }
 
-    setState(() => isSending = false);
+    setState(() {
+      sending = false;
+      aiTyping = false;
+    });
+
     scrollToBottom();
   }
 
+  // -------------------------------------------------------------------
+  // AUTO SCROLL
+  // -------------------------------------------------------------------
   void scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 150), () {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent + 80,
-        duration: const Duration(milliseconds: 300),
+      scroll.animateTo(
+        scroll.position.maxScrollExtent + 100,
+        duration: const Duration(milliseconds: 250),
         curve: Curves.easeOut,
       );
     });
   }
 
-  Widget buildMessageBubble(Map<String, String> msg) {
-    bool isUser = msg["sender"] == "user";
+  // -------------------------------------------------------------------
+  // BUILD MESSAGE BUBBLE
+  // -------------------------------------------------------------------
+  Widget bubble(Map<String, String> msg) {
+    bool user = msg["sender"] == "user";
 
     return Align(
-      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: user ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: const BoxConstraints(maxWidth: 280),
         decoration: BoxDecoration(
-          color: isUser ? Colors.deepPurple : Colors.grey.shade300,
-          borderRadius: BorderRadius.circular(16),
+          color: user ? AppColors.primaryColor : AppColors.cardColor,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 4,
+                spreadRadius: 1)
+          ],
         ),
+        constraints: const BoxConstraints(maxWidth: 280),
         child: Text(
-          msg["text"] ?? "",
+          msg["text"]!,
           style: TextStyle(
-            color: isUser ? Colors.white : Colors.black87,
+            color: user ? Colors.white : AppColors.textColor,
             fontSize: 15,
           ),
         ),
@@ -116,15 +136,17 @@ class _AiChatbotScreenState extends State<AiChatbotScreen> {
     );
   }
 
+  // -------------------------------------------------------------------
+  // BUILD
+  // -------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final name = ApiService.loggedInStudentName ?? "Student";
-    final id = ApiService.loggedInStudentId?.toString() ?? "Unknown";
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("AI Assistant ($name – ID: $id)"),
-        backgroundColor: Colors.deepPurple,
+        title: Text("AI Chat ($name)"),
+        backgroundColor: AppColors.primaryColor,
         foregroundColor: Colors.white,
       ),
 
@@ -132,16 +154,38 @@ class _AiChatbotScreenState extends State<AiChatbotScreen> {
         children: [
           Expanded(
             child: ListView.builder(
-              controller: _scrollController,
+              controller: scroll,
               padding: const EdgeInsets.all(16),
-              itemCount: messages.length,
-              itemBuilder: (ctx, index) {
-                return buildMessageBubble(messages[index]);
+              itemCount: messages.length + (aiTyping ? 1 : 0),
+              itemBuilder: (_, i) {
+                if (i == messages.length) {
+                  return Align(
+                    alignment: Alignment.centerLeft,
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.cardColor,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text("AI is typing...",
+                              style: TextStyle(color: AppColors.subtitleColor)),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return bubble(messages[i]);
               },
             ),
           ),
 
-          // ---------------- INPUT BAR ----------------
+          // -------------------------------------------------------
+          // INPUT BAR
+          // -------------------------------------------------------
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             color: Colors.grey.shade100,
@@ -149,28 +193,25 @@ class _AiChatbotScreenState extends State<AiChatbotScreen> {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _controller,
+                    controller: controller,
                     maxLines: null,
                     decoration: const InputDecoration(
-                      hintText: "Type your question...",
+                      hintText: "Ask something...",
                       border: OutlineInputBorder(),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                isSending
-                    ? const SizedBox(
-                        height: 28,
-                        width: 28,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                sending
+                    ? const CircularProgressIndicator(strokeWidth: 2)
                     : IconButton(
-                        icon: const Icon(Icons.send, color: Colors.deepPurple),
-                        onPressed: sendMessage,
+                        icon: const Icon(Icons.send,
+                            color: AppColors.primaryColor),
+                        onPressed: sendMsg,
                       ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
