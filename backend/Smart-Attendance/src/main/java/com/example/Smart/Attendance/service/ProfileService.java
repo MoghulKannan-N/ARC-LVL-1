@@ -7,6 +7,8 @@ import com.example.Smart.Attendance.repository.StudentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 public class ProfileService {
 
@@ -18,18 +20,20 @@ public class ProfileService {
 
     // ✅ Get or create profile by student name
     public Profile getProfileByName(String studentName) {
+        // Fast path: try to fetch profile directly by studentName (one SQL, joins student when needed)
+        Optional<Profile> existing = profileRepository.findByStudentName(studentName);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        // Fallback: profile not found — fetch Student and create Profile
         Student student = studentRepository.findByName(studentName)
                 .orElseThrow(() -> new RuntimeException("Student not found: " + studentName));
 
-        // Try to find an existing profile
-        return profileRepository.findById(student.getId())
-                .orElseGet(() -> {
-                    // If not found, create a new linked profile
-                    Profile newProfile = new Profile(student);
-                    newProfile.setStudent(student);
-                    newProfile.setName(student.getName());
-                    return profileRepository.save(newProfile);
-                });
+        Profile newProfile = new Profile(student);
+        newProfile.setStudent(student);
+        newProfile.setStudentName(student.getName());
+        return profileRepository.save(newProfile);
     }
 
     // ✅ Update profile for given student
@@ -42,14 +46,14 @@ public class ProfileService {
 
         // Link to student — REQUIRED for @MapsId
         existingProfile.setStudent(student);
-        existingProfile.setName(student.getName());
+        existingProfile.setStudentName(student.getName());
 
         // Update editable fields
         existingProfile.setDateOfBirth(updatedProfile.getDateOfBirth());
         existingProfile.setPhoneNumber(updatedProfile.getPhoneNumber());
-        existingProfile.setStrength(updatedProfile.getStrength());
-        existingProfile.setWeakness(updatedProfile.getWeakness());
-        existingProfile.setInterest(updatedProfile.getInterest());
+        existingProfile.setStrengths(updatedProfile.getStrengths());
+        existingProfile.setWeaknesses(updatedProfile.getWeaknesses());
+        existingProfile.setInterests(updatedProfile.getInterests());
         existingProfile.setYearOfStudying(updatedProfile.getYearOfStudying());
         existingProfile.setCourse(updatedProfile.getCourse());
 

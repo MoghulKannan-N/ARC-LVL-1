@@ -4,6 +4,7 @@
 # ============================================================
 
 import os
+import sys
 import json
 import socket
 import logging
@@ -18,10 +19,23 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from openai import OpenAI
+
+# ============================================================
+# Minimal startup info (safe) - helps confirm which file loaded
+# ============================================================
+print("=== MODULE BOOT ===")
+try:
+    print("Running file:", _file_)
+except Exception:
+    print("Running file: unknown")
+print("CWD:", os.getcwd())
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("ai-roadmap")
+logger.info("Starting backend module: %s", _file_ if "_file_" in globals() else "unknown")
+
 # ============================================================
 # Pydantic Response Models  (REQUIRED)
 # ============================================================
-
 class RoadmapOut(BaseModel):
     student_id: int
     topic: str
@@ -46,9 +60,6 @@ class ProgressOut(BaseModel):
 
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("ai-roadmap")
-
 # ============================================================
 # CONFIG
 # ============================================================
@@ -60,8 +71,6 @@ DB = {
     "host": "localhost",
     "port": 5433,
 }
-
-
 
 OPENAI_KEY = os.environ.get("OPENAI_API_KEY")
 if not OPENAI_KEY:
@@ -241,7 +250,7 @@ def openai_text(prompt: str, model: str, max_tokens: int = 1500) -> str:
         )
         return resp.choices[0].message.content
     except Exception as e:
-        logger.exception("OpenAI text generation error:", e)
+        logger.exception("OpenAI text generation error: %s", e)
         return "AI content unavailable."
 
 def openai_json(prompt: str, schema: str, model: str, max_tokens: int = 1500) -> dict:
@@ -284,46 +293,82 @@ def get_local_ip():
         return "127.0.0.1"
 
 print("🔌 Backend running on: http://" + get_local_ip() + ":8000")
+
 # ============================================================
-# HELPER: AUTO-GENERATE RESOURCE LINKS (TEXT + YOUTUBE)
+# Robust implementations for resource link generation — single copy
+# Put these before any caller to avoid NameError
 # ============================================================
+def _normalize_openai_list(data) -> list:
+    """Normalize various OpenAI return shapes into a simple list of strings."""
+    try:
+        if isinstance(data, list):
+            return [str(x) for x in data]
+        if isinstance(data, dict):
+            # find the first list value
+            for v in data.values():
+                if isinstance(v, list):
+                    return [str(x) for x in v]
+            # possibly a dict with keys mapping to strings
+            flat = []
+            for k, v in data.items():
+                if isinstance(v, str):
+                    flat.append(v)
+            if flat:
+                return flat
+        if isinstance(data, str):
+            try:
+                parsed = json.loads(data)
+                return _normalize_openai_list(parsed)
+            except Exception:
+                # maybe comma separated URLs
+                parts = [p.strip() for p in data.split(",") if p.strip().startswith("http")]
+                if parts:
+                    return parts
+        return []
+    except Exception as e:
+        logger.exception("_normalize_openai_list error: %s", e)
+        return []
+
 
 def fetch_text_links(topic: str) -> list:
     """
-    Uses OpenAI to generate 3–5 high-quality text/article resources.
-    Returns them as a Python list of strings.
+    Uses OpenAI to generate 3–5 high-quality text/article resource URLs for topic.
+    Always returns a list of URL strings (may be empty on failure).
     """
     try:
-        prompt = f"""
-        Give me 3 to 5 real, high-quality learning resources (articles, documentation, tutorials)
-        for the topic: '{topic}'.
-        Return ONLY a JSON list of URLs.
-        """
-
+        prompt = (
+            "Provide 3 to 5 real, high-quality learning resources (articles, documentation, tutorials) "
+            f"for the topic: '{topic}'.\n\nReturn ONLY a JSON array of URL strings, e.g. [\"https://...\",\"https://...\"]"
+        )
         data = openai_json(prompt, '["url"]', model=MODEL_PLANNER)
-        if isinstance(data, list):
-            return data
-        return []
-    except Exception:
+        result = _normalize_openai_list(data)
+        if not result:
+            logger.info("fetch_text_links: OpenAI returned empty for topic '%s'", topic)
+        return result[:5]
+    except Exception as e:
+        logger.exception("fetch_text_links error for topic '%s': %s", topic, e)
         return []
 
 
 def fetch_youtube_links(topic: str) -> list:
     """
-    Generates 3–5 YouTube tutorial links related to the topic.
+    Uses OpenAI to produce 3–5 YouTube tutorial URLs for topic.
+    Always returns a list of URL strings (may be empty on failure).
     """
     try:
-        prompt = f"""
-        Give me 3 to 5 YouTube video tutorial links for the topic: '{topic}'.
-        Return only a JSON list of URLs.
-        """
-
+        prompt = (
+            "Provide 3 to 5 YouTube tutorial links for the topic: "
+            f"'{topic}'.\n\nReturn ONLY a JSON array of URL strings (full YouTube URLs)."
+        )
         data = openai_json(prompt, '["url"]', model=MODEL_PLANNER)
-        if isinstance(data, list):
-            return data
+        result = _normalize_openai_list(data)
+        # best-effort: keep only youtube links if the model returned mixed URLs
+        yt_only = [u for u in result if "youtube.com" in u or "youtu.be" in u]
+        return (yt_only or result)[:5]
+    except Exception as e:
+        logger.exception("fetch_youtube_links error for topic '%s': %s", topic, e)
         return []
-    except Exception:
-        return []
+
 # ============================================================
 # PART 2 / 3 — STUDENTS • ROADMAP • MINI SESSIONS
 # ============================================================
@@ -699,16 +744,13 @@ def generate_mini_session_content(student_id: int, ms_row: dict):
     conn = get_conn()
     cur = conn.cursor()
 
-    # Save new session
+    # Save new session (use RETURNING id for psycopg2)
     cur.execute("""
         INSERT INTO sessions (student_id, mini_session_id, content_json, quiz_json)
         VALUES (%s,%s,%s,%s)
+        RETURNING id
     """, (student_id, mini_id, json.dumps({"content": content}), json.dumps(quiz)))
-
-    session_id = cur.lastrowid if hasattr(cur, "lastrowid") else None
-    if session_id is None:
-        cur.execute("SELECT MAX(id) FROM sessions")
-        session_id = cur.fetchone()[0]
+    session_id = cur.fetchone()[0]
 
     # Update mini session
     cur.execute("""
@@ -876,41 +918,30 @@ def complete_mini_session(
     for i, part in enumerate(new_parts, start=1):
         new_pos = position + i
 
-        # Insert new child roadmap row
+        # Insert new child roadmap row and return its id
         cur.execute("""
             INSERT INTO roadmap (student_id, topic, subtopic, resources, position, status, parent_id)
             VALUES (%s,%s,%s,%s,%s,%s,%s)
+            RETURNING id
         """, (
             student, topic, part["mini_subtopic"], json.dumps([]),
             new_pos, "pending", parent_id
         ))
-
-        new_rid = None
-        try:
-            new_rid = cur.lastrowid
-        except:
-            cur.execute("SELECT MAX(id) FROM roadmap")
-            new_rid = cur.fetchone()[0]
-
+        new_rid = cur.fetchone()[0]
         new_ids.append(new_rid)
 
-        # Insert mini session under it
+        # Insert mini session under it and get its id
         cur.execute("""
             INSERT INTO mini_sessions (roadmap_id, student_id, mini_title,
                 description, estimated_minutes, resources, videos, status)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            RETURNING id
         """, (
             new_rid, student, part["mini_subtopic"],
             part.get("description", ""), 50,
             json.dumps([]), json.dumps([]), "pending"
         ))
-
-        new_mini_id = None
-        try:
-            new_mini_id = cur.lastrowid
-        except:
-            cur.execute("SELECT MAX(id) FROM mini_sessions")
-            new_mini_id = cur.fetchone()[0]
+        new_mini_id = cur.fetchone()[0]
 
         # Generate simplified content
         simple_content = openai_text(
@@ -935,22 +966,17 @@ def complete_mini_session(
                 "rationale": "Fallback"
             }]
 
-        # Insert the session
+        # Insert the session and return its id
         cur.execute("""
             INSERT INTO sessions (student_id, mini_session_id, content_json, quiz_json)
             VALUES (%s,%s,%s,%s)
+            RETURNING id
         """, (
             student, new_mini_id,
             json.dumps({"content": simple_content}),
             json.dumps(new_quiz)
         ))
-
-        new_session_id = None
-        try:
-            new_session_id = cur.lastrowid
-        except:
-            cur.execute("SELECT MAX(id) FROM sessions")
-            new_session_id = cur.fetchone()[0]
+        new_session_id = cur.fetchone()[0]
 
         # Link back into mini_sessions
         cur.execute("""
@@ -1054,7 +1080,7 @@ def chatbot(message: str = Form(...)):
         return {"reply": resp.choices[0].message.content.strip()}
     except Exception as e:
         logger.exception("Chatbot error")
-        return {"reply": f"⚠️ Error: {e}"}
+        return {"reply": f"⚠ Error: {e}"}
 
 
 

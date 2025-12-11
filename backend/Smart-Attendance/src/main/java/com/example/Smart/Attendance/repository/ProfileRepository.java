@@ -8,5 +8,7 @@ import java.util.Optional;
 
 @Repository
 public interface ProfileRepository extends JpaRepository<Profile, Long> {
-    Optional<Profile> findByName(String name); // ✅ matches Profile.name field
+
+    // Matches field: private String studentName;
+    Optional<Profile> findByStudentName(String studentName);
 }

@@ -31,34 +31,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadProfile() async {
+    setState(() => _isLoading = true);
     final data = await ApiService.fetchFullProfile(widget.studentName);
+
     if (data != null) {
+      // Backend may use either strength or strengths (same for others).
+      // We read both to be robust.
       setState(() {
-        dobController.text = data["dateOfBirth"] ?? "";
-        phoneController.text = data["phoneNumber"] ?? "";
-        strengthController.text = data["strength"] ?? "";
-        weaknessController.text = data["weakness"] ?? "";
-        interestController.text = data["interest"] ?? "";
-        yearController.text = data["yearOfStudying"] ?? "";
+        dobController.text = data["dateOfBirth"] ?? data["date_of_birth"] ?? "";
+        phoneController.text = data["phoneNumber"] ?? data["phone_number"] ?? "";
+        strengthController.text =
+            data["strengths"] ?? data["strength"] ?? "";
+        weaknessController.text =
+            data["weaknesses"] ?? data["weakness"] ?? "";
+        interestController.text =
+            data["interests"] ?? data["interest"] ?? "";
+        yearController.text = data["yearOfStudying"] ??
+            data["year_of_studying"] ??
+            "";
         courseController.text = data["course"] ?? "";
       });
     }
-    setState(() => _isLoading = false);
+
+    setState(() {
+      _isLoading = false;
+      _isEditing = false; // ensure view mode after load
+    });
   }
 
   Future<void> _saveProfile() async {
-    setState(() => _isSaving = true);
+    setState(() {
+      _isSaving = true;
+    });
 
+    // Use the new preferred keys (strengths/weaknesses/interests).
+    // Also include old keys as fallbacks to maximize compatibility.
     final Map<String, dynamic> updatedData = {
+      // server route probably identifies student by name; still include for completeness
       "studentName": widget.studentName,
       "dateOfBirth": dobController.text,
       "phoneNumber": phoneController.text,
+      // preferred (new) keys:
+      "strengths": strengthController.text,
+      "weaknesses": weaknessController.text,
+      "interests": interestController.text,
+      // legacy keys (fallback):
       "strength": strengthController.text,
       "weakness": weaknessController.text,
       "interest": interestController.text,
       "yearOfStudying": yearController.text,
       "course": courseController.text,
     };
+
+    // Disable editing during save
+    setState(() => _isEditing = false);
 
     final success =
         await ApiService.updateFullProfile(widget.studentName, updatedData);
@@ -70,9 +96,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: success ? Colors.green : Colors.red,
     ));
 
+    // Refresh the profile from server to reflect any normalization
+    if (success) {
+      await _loadProfile();
+    } else {
+      setState(() => _isSaving = false);
+    }
+
+    // ensure saving flag off
     setState(() {
       _isSaving = false;
-      _isEditing = false; // Return to view mode after saving
     });
   }
 

@@ -9,14 +9,21 @@ public class Profile {
     @Id
     private Long id; // same as Student.id — shared primary key
 
-    @Column(nullable = false)
-    private String name; // same as Student.name
+    @Column(name = "student_name", nullable = false)
+    private String studentName; // mapped to DB column student_name
 
     private String dateOfBirth;
     private String phoneNumber;
-    private String strength;
-    private String weakness;
-    private String interest;
+
+    @Column(name = "strengths")
+    private String strengths; // renamed column
+
+    @Column(name = "weaknesses")
+    private String weaknesses; // renamed column
+
+    @Column(name = "interests")
+    private String interests; // renamed column
+
     private String yearOfStudying;
     private String course;
 
@@ -30,7 +37,7 @@ public class Profile {
 
     public Profile(Student student) {
         this.student = student;
-        this.name = student.getName();
+        this.studentName = student != null ? student.getName() : null;
     }
 
     // Getters and Setters
@@ -42,12 +49,12 @@ public class Profile {
         this.id = id;
     }
 
-    public String getName() {
-        return name;
+    public String getStudentName() {
+        return studentName;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setStudentName(String studentName) {
+        this.studentName = studentName;
     }
 
     public String getDateOfBirth() {
@@ -66,28 +73,28 @@ public class Profile {
         this.phoneNumber = phoneNumber;
     }
 
-    public String getStrength() {
-        return strength;
+    public String getStrengths() {
+        return strengths;
     }
 
-    public void setStrength(String strength) {
-        this.strength = strength;
+    public void setStrengths(String strengths) {
+        this.strengths = strengths;
     }
 
-    public String getWeakness() {
-        return weakness;
+    public String getWeaknesses() {
+        return weaknesses;
     }
 
-    public void setWeakness(String weakness) {
-        this.weakness = weakness;
+    public void setWeaknesses(String weaknesses) {
+        this.weaknesses = weaknesses;
     }
 
-    public String getInterest() {
-        return interest;
+    public String getInterests() {
+        return interests;
     }
 
-    public void setInterest(String interest) {
-        this.interest = interest;
+    public void setInterests(String interests) {
+        this.interests = interests;
     }
 
     public String getYearOfStudying() {
@@ -112,6 +119,6 @@ public class Profile {
 
     public void setStudent(Student student) {
         this.student = student;
-        this.name = student.getName(); // keep names synced
-    }
+        this.studentName = student != null ? student.getName() : this.studentName; // keep names synced
+}
 }
