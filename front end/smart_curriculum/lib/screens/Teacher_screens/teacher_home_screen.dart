@@ -4,8 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_curriculum/utils/constants.dart';
 import 'package:smart_curriculum/screens/Teacher_screens/attendance_screen.dart';
-import 'package:smart_curriculum/screens/Teacher_screens/quiz_screen.dart';
 import 'package:smart_curriculum/screens/Teacher_screens/configure_settings_screen.dart';
+import 'package:smart_curriculum/screens/Teacher_screens/arc_stats_screen.dart';
 import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.dart'
     as teacher_api;
 import 'package:smart_curriculum/services/Student_service/student_api_service.dart'
@@ -25,7 +25,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   final List<Widget> _screens = const [
     AttendanceScreen(),
     TeacherHomeContent(),
-    QuizScreen(),
+    ArcStatsScreen(),
   ];
 
   @override
@@ -77,20 +77,15 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
           ),
         ],
       ),
+
+      // ---- Main Body Controlled by Bottom Nav ----
       body: _screens[_currentIndex],
+
+      // ---- Bottom Navigation Bar ----
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) async {
-          // Refresh stats when coming back from attendance
-          if (index == 0) {
-            await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AttendanceScreen()),
-            );
-            setState(() {});
-          } else {
-            setState(() => _currentIndex = index);
-          }
+        onTap: (index) {
+          setState(() => _currentIndex = index);
         },
         selectedItemColor: AppColors.primaryColor,
         unselectedItemColor: AppColors.subtitleColor,
@@ -104,8 +99,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.quiz_outlined),
-            label: 'Quiz',
+            icon: Icon(Icons.bar_chart_outlined),
+            label: "ARC's Stats",
           ),
         ],
       ),
@@ -113,9 +108,9 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   }
 }
 
-/// =====================================================================
-/// HOME SCREEN CONTENT
-/// =====================================================================
+//
+// ================= HOME SCREEN CONTENT =================
+//
 
 class TeacherHomeContent extends StatelessWidget {
   const TeacherHomeContent({super.key});
@@ -329,9 +324,9 @@ class TeacherHomeContent extends StatelessWidget {
   }
 }
 
-/// =====================================================================
-/// STATS CARD
-/// =====================================================================
+//
+// ================== STATS CARD ==================
+//
 
 class StatCard extends StatelessWidget {
   final String title;
@@ -363,9 +358,9 @@ class StatCard extends StatelessWidget {
   }
 }
 
-/// =====================================================================
-/// BLUETOOTH TIMER DIALOG
-/// =====================================================================
+//
+// ============= BLUETOOTH TIMER DIALOG =============
+//
 
 class BluetoothTimerDialog extends StatefulWidget {
   final String sessionType;

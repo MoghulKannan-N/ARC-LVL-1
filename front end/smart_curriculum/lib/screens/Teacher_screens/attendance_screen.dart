@@ -10,9 +10,11 @@ class AttendanceScreen extends StatefulWidget {
   State<AttendanceScreen> createState() => _AttendanceScreenState();
 }
 
-class _AttendanceScreenState extends State<AttendanceScreen> {
+class _AttendanceScreenState extends State<AttendanceScreen>
+    with AutomaticKeepAliveClientMixin {
   List<Map<String, dynamic>> students = [];
   bool loading = true;
+  bool updating = false;
 
   @override
   void initState() {
@@ -20,47 +22,80 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     loadStudents();
   }
 
+  @override
+  bool get wantKeepAlive => true;
+
   // ------------------ Load Students ------------------
   Future<void> loadStudents() async {
+    setState(() => loading = true);
+
     final data = await ApiService.getAllStudents();
+    if (data == null) {
+      setState(() {
+        students = [];
+        loading = false;
+      });
+      return;
+    }
+
+    List<Map<String, dynamic>> merged = [];
+    for (var s in data) {
+      final name = (s["name"]?.toString().trim().isNotEmpty ?? false)
+          ? s["name"]
+          : "Kavin";
+      String? status = await ApiService.getAttendanceStatus(name);
+      merged.add({
+        "name": name,
+        "status": status ?? "UNKNOWN",
+      });
+    }
+
     setState(() {
-      students = data ?? [];
+      students = merged;
       loading = false;
     });
   }
 
   // ---------------- Update Attendance -----------------
   Future<void> changeStatus(String studentName, String status) async {
+    setState(() => updating = true);
+
     final ok = await ApiService.updateAttendanceStatus(studentName, status);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(ok ? "Attendance updated" : "Failed to update"),
+        content: Text(ok
+            ? "Attendance updated successfully"
+            : "Failed to update attendance"),
         backgroundColor: ok ? Colors.green : Colors.red,
+        duration: const Duration(seconds: 2),
       ),
     );
 
-    setState(() {});
+    await loadStudents();
+    setState(() => updating = false);
   }
 
   // ----------------------- UI -------------------------
   @override
   Widget build(BuildContext context) {
+    super.build(context);
+
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
       appBar: AppBar(
+        automaticallyImplyLeading: false, // ✅ Prevents back arrow
         title: const Text("Attendance Management"),
         backgroundColor: AppColors.primaryColor,
         foregroundColor: Colors.white,
-
-        /// --------------- ADD STUDENT BUTTON ----------------
         actions: [
           GestureDetector(
-            onTap: () {
-              Navigator.push(
+            onTap: () async {
+              await Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => AddStudentScreen()),
+                MaterialPageRoute(builder: (_) => const AddStudentScreen()),
               );
+              await loadStudents();
             },
             child: Padding(
               padding: const EdgeInsets.only(right: 12),
@@ -81,90 +116,108 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
         ],
       ),
+
       body: loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: students.length,
-              itemBuilder: (context, index) {
-                final s = students[index];
+          : RefreshIndicator(
+              onRefresh: loadStudents,
+              color: AppColors.primaryColor,
+              child: students.isEmpty
+                  ? const Center(
+                      child: Text(
+                        "No students found.",
+                        style: TextStyle(color: AppColors.subtitleColor),
+                      ),
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(12),
+                      itemCount: students.length,
+                      itemBuilder: (context, index) {
+                        final s = students[index];
+                        final name = s["name"] ?? "Kavin";
+                        final status = s["status"] ?? "UNKNOWN";
 
-                return Card(
-                  elevation: 3,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(
-                      children: [
-                        const CircleAvatar(
-                          radius: 28,
-                          backgroundColor: AppColors.primaryColor,
-                          child:
-                              Icon(Icons.person, size: 30, color: Colors.white),
-                        ),
+                        Color color = Colors.grey;
+                        if (status == "PRESENT") color = Colors.green;
+                        if (status == "ABSENT") color = Colors.red;
+                        if (status == "LATE") color = Colors.orange;
 
-                        const SizedBox(width: 15),
-
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                s["name"],
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textColor,
+                        return Card(
+                          elevation: 3,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
+                              children: [
+                                const CircleAvatar(
+                                  radius: 28,
+                                  backgroundColor: AppColors.primaryColor,
+                                  child: Icon(Icons.person,
+                                      size: 30, color: Colors.white),
                                 ),
-                              ),
-                              const SizedBox(height: 5),
-                              FutureBuilder<String?>(
-                                future:
-                                    ApiService.getAttendanceStatus(s["name"]),
-                                builder: (context, snapshot) {
-                                  final status = snapshot.data ?? "UNKNOWN";
-
-                                  Color color = Colors.grey;
-                                  if (status == "PRESENT") color = Colors.green;
-                                  if (status == "ABSENT") color = Colors.red;
-                                  if (status == "LATE") color = Colors.orange;
-
-                                  return Text(
-                                    "Status: $status",
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold,
-                                      color: color,
+                                const SizedBox(width: 15),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        name,
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.textColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 5),
+                                      Text(
+                                        "Status: $status",
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: color,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                PopupMenuButton<String>(
+                                  icon: const Icon(Icons.edit,
+                                      color: AppColors.primaryColor),
+                                  onSelected: (value) =>
+                                      changeStatus(name, value),
+                                  itemBuilder: (context) => const [
+                                    PopupMenuItem(
+                                      value: "PRESENT",
+                                      child: Text("Mark as PRESENT"),
                                     ),
-                                  );
-                                },
-                              ),
-                            ],
+                                    PopupMenuItem(
+                                      value: "ABSENT",
+                                      child: Text("Mark as ABSENT"),
+                                    ),
+                                    PopupMenuItem(
+                                      value: "LATE",
+                                      child: Text("Mark as LATE"),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-
-                        /// ---- Popup for editing ----
-                        PopupMenuButton(
-                          icon: const Icon(Icons.edit,
-                              color: AppColors.primaryColor),
-                          onSelected: (value) => changeStatus(s["name"], value),
-                          itemBuilder: (context) => const [
-                            PopupMenuItem(
-                                value: "PRESENT",
-                                child: Text("Mark as PRESENT")),
-                            PopupMenuItem(
-                                value: "ABSENT", child: Text("Mark as ABSENT")),
-                            PopupMenuItem(
-                                value: "LATE", child: Text("Mark as LATE")),
-                          ],
-                        ),
-                      ],
+                        );
+                      },
                     ),
-                  ),
-                );
-              },
             ),
+
+      // Keep bottom nav visible — no floating overlays
+      floatingActionButton: updating
+          ? Container(
+              color: Colors.black26,
+              child: const Center(child: CircularProgressIndicator()),
+            )
+          : null,
     );
   }
 }
