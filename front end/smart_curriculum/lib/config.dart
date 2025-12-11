@@ -1,3 +1,3 @@
-const String flask ="http://localhost:5000";
-const String sb ="http://localhost:8080";
-const String aiBase ="http://localhost:8000";
+const String flask ="https://spouse-closer-toolbar-sky.trycloudflare.com";
+const String sb ="https://feelings-kind-needed-brandon.trycloudflare.com";
+const String aiBase ="https://required-writes-fcc-geological.trycloudflare.com";
