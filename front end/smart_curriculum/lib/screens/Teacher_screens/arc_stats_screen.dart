@@ -64,7 +64,8 @@ class ArcStatsScreen extends StatelessWidget {
             _trendTile("Attendance Growth", "Steady 4% increase this month"),
             _trendTile("Top Performing Course", "AI & Data Science"),
             _trendTile("Lowest Attendance Day", "Monday"),
-            _trendTile("ARC’s Next Recommendation", "Increase engagement in ML labs"),
+            _trendTile(
+                "ARC’s Next Recommendation", "Increase engagement in ML labs"),
 
             const SizedBox(height: 30),
             const Text(
@@ -94,6 +95,47 @@ class ArcStatsScreen extends StatelessWidget {
                 "Students show consistent attendance patterns and high learning retention. "
                 "Focus on improving participation during early-week sessions for balanced performance.",
                 style: TextStyle(color: AppColors.subtitleColor, fontSize: 14),
+              ),
+            ),
+
+            const SizedBox(height: 40),
+
+            // ---- Assign Work Button ----
+            Center(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.assignment, color: Colors.white),
+                label: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12.0),
+                  child: Text(
+                    "ASSIGN WORK TO THE STUDENTS",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor,
+                  minimumSize: const Size(double.infinity, 55),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 4,
+                ),
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        "The Work is assigned to the students",
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      duration: Duration(seconds: 2),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                },
               ),
             ),
           ],

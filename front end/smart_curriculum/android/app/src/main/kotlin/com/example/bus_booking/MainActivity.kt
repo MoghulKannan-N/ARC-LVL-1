@@ -22,7 +22,7 @@ class MainActivity : FlutterActivity() {
     private val MANUFACTURER_ID = 0xFFFF
     private val TEACHER_MARKER = "TEACHER"
     private val RELAY_MARKER = "RELAY"
-    private val RSSI_THRESHOLD = -70
+    private val RSSI_THRESHOLD = -95
     private val RSSI_SAMPLE_COUNT = 5
     private val rssiSamples = ArrayList<Int>(RSSI_SAMPLE_COUNT)
 

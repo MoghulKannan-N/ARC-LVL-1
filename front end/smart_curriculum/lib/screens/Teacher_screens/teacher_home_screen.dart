@@ -309,13 +309,26 @@ class TeacherHomeContent extends StatelessWidget {
           ),
 
           const SizedBox(height: 40),
+
+          // ---- Configure Settings Button (white text fixed) ----
           ElevatedButton.icon(
             onPressed: () => _showStudentNameDialog(context),
             icon: const Icon(Icons.settings, color: Colors.white),
-            label: const Text("Configure Settings"),
+            label: const Text(
+              "Configure Settings",
+              style: TextStyle(
+                color: Colors.white, // Text color fixed to white
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryColor,
               padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 4,
             ),
           ),
         ],
