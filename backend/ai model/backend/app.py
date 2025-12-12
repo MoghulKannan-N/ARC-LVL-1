@@ -4,6 +4,7 @@
 # ============================================================
 
 import os
+import sys
 import json
 import socket
 import logging
@@ -18,10 +19,28 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 
 from openai import OpenAI
+
+# ============================================================
+# Minimal startup info (safe) - helps confirm which file loaded
+# ============================================================
+print("=== MODULE BOOT ===")
+try:
+    print("Running file:", file)
+except Exception:
+    print("Running file: unknown")
+print("CWD:", os.getcwd())
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("ai-roadmap")
+logger.info("Starting backend module: %s", file if "file" in globals() else "unknown")
+
+# ============================================================
+# Pydantic Response Models  (REQUIRED)
+# ============================================================
 class RoadmapOut(BaseModel):
     student_id: int
     topic: str
     roadmap: List[dict]
+
 
 class MiniSessionOut(BaseModel):
     mini_session_id: int
@@ -32,6 +51,7 @@ class MiniSessionOut(BaseModel):
     videos: List[str] = []
     quiz: List[dict] = []
 
+
 class ProgressOut(BaseModel):
     student_id: int
     completed: int
@@ -39,9 +59,6 @@ class ProgressOut(BaseModel):
     progress: str
 
 load_dotenv()
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("ai-roadmap")
 
 # ============================================================
 # CONFIG
@@ -128,9 +145,9 @@ def ensure_schema():
             student_name VARCHAR(255) NOT NULL,
             date_of_birth VARCHAR(255),
             phone_number VARCHAR(255),
-            strength TEXT,
-            weakness TEXT,
-            interest TEXT,
+            strengths TEXT,
+            weaknesses TEXT,
+            interests TEXT,
             year_of_studying VARCHAR(255),
             course VARCHAR(255)
         );
@@ -233,7 +250,7 @@ def openai_text(prompt: str, model: str, max_tokens: int = 1500) -> str:
         )
         return resp.choices[0].message.content
     except Exception as e:
-        logger.exception("OpenAI text generation error:", e)
+        logger.exception("OpenAI text generation error: %s", e)
         return "AI content unavailable."
 
 def openai_json(prompt: str, schema: str, model: str, max_tokens: int = 1500) -> dict:
@@ -276,6 +293,82 @@ def get_local_ip():
         return "127.0.0.1"
 
 print("🔌 Backend running on: http://" + get_local_ip() + ":8000")
+
+# ============================================================
+# Robust implementations for resource link generation — single copy
+# Put these before any caller to avoid NameError
+# ============================================================
+def _normalize_openai_list(data) -> list:
+    """Normalize various OpenAI return shapes into a simple list of strings."""
+    try:
+        if isinstance(data, list):
+            return [str(x) for x in data]
+        if isinstance(data, dict):
+            # find the first list value
+            for v in data.values():
+                if isinstance(v, list):
+                    return [str(x) for x in v]
+            # possibly a dict with keys mapping to strings
+            flat = []
+            for k, v in data.items():
+                if isinstance(v, str):
+                    flat.append(v)
+            if flat:
+                return flat
+        if isinstance(data, str):
+            try:
+                parsed = json.loads(data)
+                return _normalize_openai_list(parsed)
+            except Exception:
+                # maybe comma separated URLs
+                parts = [p.strip() for p in data.split(",") if p.strip().startswith("http")]
+                if parts:
+                    return parts
+        return []
+    except Exception as e:
+        logger.exception("_normalize_openai_list error: %s", e)
+        return []
+
+
+def fetch_text_links(topic: str) -> list:
+    """
+    Uses OpenAI to generate 3–5 high-quality text/article resource URLs for topic.
+    Always returns a list of URL strings (may be empty on failure).
+    """
+    try:
+        prompt = (
+            "Provide 3 to 5 real, high-quality learning resources (articles, documentation, tutorials) "
+            f"for the topic: '{topic}'.\n\nReturn ONLY a JSON array of URL strings, e.g. [\"https://...\",\"https://...\"]"
+        )
+        data = openai_json(prompt, '["url"]', model=MODEL_PLANNER)
+        result = _normalize_openai_list(data)
+        if not result:
+            logger.info("fetch_text_links: OpenAI returned empty for topic '%s'", topic)
+        return result[:5]
+    except Exception as e:
+        logger.exception("fetch_text_links error for topic '%s': %s", topic, e)
+        return []
+
+
+def fetch_youtube_links(topic: str) -> list:
+    """
+    Uses OpenAI to produce 3–5 YouTube tutorial URLs for topic.
+    Always returns a list of URL strings (may be empty on failure).
+    """
+    try:
+        prompt = (
+            "Provide 3 to 5 YouTube tutorial links for the topic: "
+            f"'{topic}'.\n\nReturn ONLY a JSON array of URL strings (full YouTube URLs)."
+        )
+        data = openai_json(prompt, '["url"]', model=MODEL_PLANNER)
+        result = _normalize_openai_list(data)
+        # best-effort: keep only youtube links if the model returned mixed URLs
+        yt_only = [u for u in result if "youtube.com" in u or "youtu.be" in u]
+        return (yt_only or result)[:5]
+    except Exception as e:
+        logger.exception("fetch_youtube_links error for topic '%s': %s", topic, e)
+        return []
+
 # ============================================================
 # PART 2 / 3 — STUDENTS • ROADMAP • MINI SESSIONS
 # ============================================================
@@ -295,20 +388,20 @@ def add_student(
     student_name: str = Form(...),
     date_of_birth: str = Form(None),
     phone_number: str = Form(None),
-    strength: str = Form(None),
-    weakness: str = Form(None),
-    interest: str = Form(None),
+    strengths: str = Form(None),
+    weaknesses: str = Form(None),
+    interests: str = Form(None),
     year_of_studying: str = Form(None),
     course: str = Form(None),
 ):
     """Creates a new student inside student_profiles."""
     query_db("""
         INSERT INTO student_profiles
-        (student_name, date_of_birth, phone_number, strength, weakness, interest, year_of_studying, course)
+        (student_name, date_of_birth, phone_number, strengths, weaknesses, interests, year_of_studying, course)
         VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
     """, (
-        student_name, date_of_birth, phone_number, strength,
-        weakness, interest, year_of_studying, course
+        student_name, date_of_birth, phone_number, strengths,
+        weaknesses, interests, year_of_studying, course
     ))
 
     student = query_db("""
@@ -345,18 +438,23 @@ def reset_student(student_id: int = Form(...)):
 # ============================================================
 # GENERATE ROADMAP
 # ============================================================
-# ============================================================
-# GENERATE ROADMAP — AI DECIDES TOPIC USING STRENGTH + WEAKNESS + INTEREST
-# ============================================================
-
 @app.post("/generate_roadmap", response_model=RoadmapOut)
 def generate_roadmap(student_id: int = Form(...)):
+    """
+    Generate a curriculum roadmap for a student.
+    - Defensive reading of possibly-misspelled columns.
+    - Logs fetched data, prompt, raw AI response and final cleaned topic.
+    - Uses an alternate prompt if the AI returns the same topic the student already has.
+    - Deletes previous "unwanted" roadmap items (status != 'done') and all dependent rows
+      (mini_sessions, sessions, quiz_results) before inserting the newly generated roadmap.
+    """
 
     # --------------------------------------------
     # 1. Get student profile
     # --------------------------------------------
     student = query_db("""
-        SELECT student_name, strength, weakness, interest, course, year_of_studying
+        SELECT student_name, strengths, weaknesses, interests, course, year_of_studying,
+               strengths, weaknesses
         FROM student_profiles
         WHERE id=%s
     """, (student_id,), one=True)
@@ -364,53 +462,201 @@ def generate_roadmap(student_id: int = Form(...)):
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    strength = student.get("strength", "")
-    weakness = student.get("weakness", "")
-    interest = student.get("interest", "")
-    course = student.get("course", "")
-    year = student.get("year_of_studying", "")
+    # Defensive: accept both correct and misspelled DB columns
+    strengths = (student.get("strengths") or student.get("strengths") or "").strip()
+    weaknesses = (student.get("weaknesses") or student.get("weaknesses") or "").strip()
+    interests = (student.get("interests") or "").strip()
+    course = (student.get("course") or "").strip()
+    year = (student.get("year_of_studying") or "").strip()
+
+    logger.info("generate_roadmap: student fetch => %s", json.dumps({
+        "student_id": student_id,
+        "student_name": student.get("student_name"),
+        "strengths": strengths,
+        "weaknesses": weaknesses,
+        "interests": interests,
+        "course": course,
+        "year": year
+    }, ensure_ascii=False))
+
+    # --------------------------------------------
+    # 1.5 Remove previous unwanted roadmap items (keep completed ones)
+    # --------------------------------------------
+    try:
+        conn = get_conn()
+        # use RealDictCursor to make fetching easier
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # 1) find roadmap ids that are NOT done (unwanted)
+        cur.execute("""
+            SELECT id FROM roadmap
+            WHERE student_id = %s AND (status IS NULL OR status != 'done')
+        """, (student_id,))
+        rows = cur.fetchall()
+        unwanted_roadmap_ids = [r["id"] for r in rows] if rows else []
+
+        if unwanted_roadmap_ids:
+            logger.info("generate_roadmap: removing unwanted roadmap ids => %s", unwanted_roadmap_ids)
+
+            # 2) gather mini_session ids under those roadmap ids
+            cur.execute("""
+                SELECT id FROM mini_sessions
+                WHERE roadmap_id = ANY(%s)
+            """, (unwanted_roadmap_ids,))
+            mini_rows = cur.fetchall()
+            mini_ids = [r["id"] for r in mini_rows] if mini_rows else []
+
+            # 3) gather session ids under those mini_ids
+            session_ids = []
+            if mini_ids:
+                cur.execute("""
+                    SELECT id FROM sessions
+                    WHERE mini_session_id = ANY(%s)
+                """, (mini_ids,))
+                sess_rows = cur.fetchall()
+                session_ids = [r["id"] for r in sess_rows] if sess_rows else []
+
+            # 4) delete quiz_results linked to those sessions
+            if session_ids:
+                cur.execute("""
+                    DELETE FROM quiz_results
+                    WHERE session_id = ANY(%s)
+                """, (session_ids,))
+                logger.info("generate_roadmap: deleted quiz_results for sessions => %s", session_ids)
+
+            # 5) delete sessions under the mini_sessions
+            if mini_ids:
+                cur.execute("""
+                    DELETE FROM sessions
+                    WHERE mini_session_id = ANY(%s)
+                """, (mini_ids,))
+                logger.info("generate_roadmap: deleted sessions for mini_sessions => %s", mini_ids)
+
+            # 6) delete mini_sessions under the roadmap ids
+            cur.execute("""
+                DELETE FROM mini_sessions
+                WHERE roadmap_id = ANY(%s)
+            """, (unwanted_roadmap_ids,))
+            logger.info("generate_roadmap: deleted mini_sessions for roadmap ids => %s", unwanted_roadmap_ids)
+
+            # 7) delete roadmap rows themselves
+            cur.execute("""
+                DELETE FROM roadmap
+                WHERE id = ANY(%s)
+            """, (unwanted_roadmap_ids,))
+            logger.info("generate_roadmap: deleted roadmap ids => %s", unwanted_roadmap_ids)
+
+        else:
+            logger.info("generate_roadmap: no unwanted roadmap items to delete for student %s", student_id)
+
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        logger.exception("generate_roadmap: error while cleaning old roadmap items: %s", e)
+        # continue — we don't want to block roadmap generation if cleanup fails
 
     # --------------------------------------------
     # 2. Ask AI to choose the BEST topic for student
     # --------------------------------------------
-    topic_prompt = f"""
-    You are an expert academic planner.
+    topic_prompt = (
+        "You are an expert academic planner. Choose ONE short topic name (no more than 6 words) "
+        "that the student should study next. Make the topic directly address their weaknesses "
+        "and align with their interests and course. RETURN ONLY the topic name on a single line, "
+        "no punctuation, no explanation, no JSON.\n\n"
+        f"Student strengths: {strengths or 'N/A'}\n"
+        f"Student weaknesses: {weaknesses or 'N/A'}\n"
+        f"Student interests: {interests or 'N/A'}\n"
+        f"Course: {course or 'N/A'}\n"
+        f"Year: {year or 'N/A'}\n\n"
+        "If you cannot decide, return: Foundational Skills Improvement"
+    )
 
-    Based on this student's details, choose ONE best learning topic they should study next:
+    logger.info("generate_roadmap: topic_prompt => %s", topic_prompt)
 
-    Strengths: {strength}
-    Weaknesses: {weakness}
-    Interests: {interest}
-    Course: {course}
-    Year of studying: {year}
+    # Primary attempt
+    try:
+        raw_resp = openai_text(topic_prompt, model=MODEL_PLANNER, max_tokens=40)
+    except Exception as e:
+        logger.exception("OpenAI topic selection failed on primary attempt: %s", e)
+        raw_resp = ""
 
-    Rules:
-    - Choose only ONE topic.
-    - Topic must improve weakness.
-    - Topic must align with student's interests.
-    - Topic must help future skills for their course.
-    - Return ONLY the topic name, no explanation.
-    """
+    logger.info("generate_roadmap: raw topic response => %s", repr(raw_resp))
 
-    topic = openai_text(topic_prompt, model=MODEL_PLANNER, max_tokens=30).strip()
+    def clean_topic(text: str) -> str:
+        if not text:
+            return ""
+        for line in text.splitlines():
+            s = line.strip().strip('"').strip("'")
+            if s:
+                while s and s[-1] in ".;:":
+                    s = s[:-1].strip()
+                parts = s.split()
+                if len(parts) > 6:
+                    s = " ".join(parts[:6])
+                return s
+        return ""
 
-    if not topic:
-        topic = "Foundational Skills Improvement"
+    cleaned = clean_topic(raw_resp)
+
+    # Fallback if nothing useful
+    if not cleaned:
+        if interests:
+            cleaned = f"{interests.split(',')[0].strip()} Essentials"
+        else:
+            cleaned = "Foundational Skills Improvement"
+
+    # Check existing topic for this student in DB to avoid duplicates
+    try:
+        cur_status = query_db("SELECT current_topic FROM student_learning_status WHERE student_id=%s", (student_id,), one=True)
+        existing_topic = cur_status["current_topic"] if cur_status and cur_status.get("current_topic") else None
+    except Exception:
+        existing_topic = None
+
+    # If duplicate, attempt an alternate prompt requesting a different topic
+    if existing_topic and existing_topic.strip().lower() == cleaned.strip().lower():
+        alt_prompt = (
+            topic_prompt
+            + f"\n\nDO NOT RETURN the same topic: {existing_topic}. Return a DIFFERENT topic name only."
+        )
+        logger.info("generate_roadmap: attempting alt prompt to avoid duplicate: %s", alt_prompt)
+
+        try:
+            alt_raw = openai_text(alt_prompt, model=MODEL_PLANNER, max_tokens=40)
+            logger.info("generate_roadmap: alt raw response => %s", repr(alt_raw))
+            alt_clean = clean_topic(alt_raw)
+            if alt_clean and alt_clean.lower() != existing_topic.lower():
+                cleaned = alt_clean
+                logger.info("generate_roadmap: alt topic accepted => %s", cleaned)
+            else:
+                logger.info("generate_roadmap: alt topic rejected or same; keeping original cleaned topic")
+        except Exception as e:
+            logger.exception("generate_roadmap: alt prompt failed: %s", e)
+
+    topic = cleaned
+    logger.info("generate_roadmap: final chosen topic => %s", topic)
 
     # --------------------------------------------
     # 3. Generate roadmap from chosen topic
     # --------------------------------------------
     roadmap_prompt = (
         f"Break the topic '{topic}' into 6–10 clear subtopics. "
-        "Return JSON array named 'roadmap'. Each item must contain:"
-        "subtopic, description, and optional resources list."
+        "Return a JSON object with a single key 'roadmap' which is an array. "
+        "Each item must contain: subtopic (string), description (string), resources (array of strings)."
     )
 
     schema = '{"roadmap":[{"subtopic":str,"description":str,"resources":[str]}]}'
 
-    ai_roadmap = openai_json(roadmap_prompt, schema, model=MODEL_PLANNER).get("roadmap", [])
+    try:
+        ai_roadmap = openai_json(roadmap_prompt, schema, model=MODEL_PLANNER).get("roadmap", [])
+    except Exception as e:
+        logger.exception("OpenAI roadmap generation failed: %s", e)
+        ai_roadmap = []
+
     if not ai_roadmap:
         ai_roadmap = [{"subtopic": f"{topic} Basics", "description": "Introduction", "resources": []}]
+
+    logger.info("generate_roadmap: ai_roadmap => %s", json.dumps(ai_roadmap, ensure_ascii=False))
 
     # --------------------------------------------
     # 4. Insert roadmap into DB
@@ -441,12 +687,15 @@ def generate_roadmap(student_id: int = Form(...)):
     # --------------------------------------------
     # 5. Update student's current topic in student_learning_status
     # --------------------------------------------
-    query_db("""
-        INSERT INTO student_learning_status (student_id, current_topic, progress)
-        VALUES (%s,%s,%s)
-        ON CONFLICT (student_id)
-        DO UPDATE SET current_topic = EXCLUDED.current_topic, last_updated = NOW()
-    """, (student_id, topic, 0))
+    try:
+        query_db("""
+            INSERT INTO student_learning_status (student_id, current_topic, progress)
+            VALUES (%s,%s,%s)
+            ON CONFLICT (student_id)
+            DO UPDATE SET current_topic = EXCLUDED.current_topic, progress = EXCLUDED.progress, last_updated = NOW()
+        """, (student_id, topic, 0))
+    except Exception as e:
+        logger.exception("generate_roadmap: failed to upsert student_learning_status: %s", e)
 
     # Return final API response
     return {
@@ -454,9 +703,6 @@ def generate_roadmap(student_id: int = Form(...)):
         "topic": topic,
         "roadmap": ai_roadmap
     }
-
-
-
 # ============================================================
 # ROADMAP LIST
 # ============================================================
@@ -724,16 +970,13 @@ def generate_mini_session_content(student_id: int, ms_row: dict):
     conn = get_conn()
     cur = conn.cursor()
 
-    # Save new session
+    # Save new session (use RETURNING id for psycopg2)
     cur.execute("""
         INSERT INTO sessions (student_id, mini_session_id, content_json, quiz_json)
         VALUES (%s,%s,%s,%s)
+        RETURNING id
     """, (student_id, mini_id, json.dumps({"content": content}), json.dumps(quiz)))
-
-    session_id = cur.lastrowid if hasattr(cur, "lastrowid") else None
-    if session_id is None:
-        cur.execute("SELECT MAX(id) FROM sessions")
-        session_id = cur.fetchone()[0]
+    session_id = cur.fetchone()[0]
 
     # Update mini session
     cur.execute("""
@@ -901,41 +1144,30 @@ def complete_mini_session(
     for i, part in enumerate(new_parts, start=1):
         new_pos = position + i
 
-        # Insert new child roadmap row
+        # Insert new child roadmap row and return its id
         cur.execute("""
             INSERT INTO roadmap (student_id, topic, subtopic, resources, position, status, parent_id)
             VALUES (%s,%s,%s,%s,%s,%s,%s)
+            RETURNING id
         """, (
             student, topic, part["mini_subtopic"], json.dumps([]),
             new_pos, "pending", parent_id
         ))
-
-        new_rid = None
-        try:
-            new_rid = cur.lastrowid
-        except:
-            cur.execute("SELECT MAX(id) FROM roadmap")
-            new_rid = cur.fetchone()[0]
-
+        new_rid = cur.fetchone()[0]
         new_ids.append(new_rid)
 
-        # Insert mini session under it
+        # Insert mini session under it and get its id
         cur.execute("""
             INSERT INTO mini_sessions (roadmap_id, student_id, mini_title,
                 description, estimated_minutes, resources, videos, status)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+            RETURNING id
         """, (
             new_rid, student, part["mini_subtopic"],
             part.get("description", ""), 50,
             json.dumps([]), json.dumps([]), "pending"
         ))
-
-        new_mini_id = None
-        try:
-            new_mini_id = cur.lastrowid
-        except:
-            cur.execute("SELECT MAX(id) FROM mini_sessions")
-            new_mini_id = cur.fetchone()[0]
+        new_mini_id = cur.fetchone()[0]
 
         # Generate simplified content
         simple_content = openai_text(
@@ -960,22 +1192,17 @@ def complete_mini_session(
                 "rationale": "Fallback"
             }]
 
-        # Insert the session
+        # Insert the session and return its id
         cur.execute("""
             INSERT INTO sessions (student_id, mini_session_id, content_json, quiz_json)
             VALUES (%s,%s,%s,%s)
+            RETURNING id
         """, (
             student, new_mini_id,
             json.dumps({"content": simple_content}),
             json.dumps(new_quiz)
         ))
-
-        new_session_id = None
-        try:
-            new_session_id = cur.lastrowid
-        except:
-            cur.execute("SELECT MAX(id) FROM sessions")
-            new_session_id = cur.fetchone()[0]
+        new_session_id = cur.fetchone()[0]
 
         # Link back into mini_sessions
         cur.execute("""
@@ -1079,7 +1306,7 @@ def chatbot(message: str = Form(...)):
         return {"reply": resp.choices[0].message.content.strip()}
     except Exception as e:
         logger.exception("Chatbot error")
-        return {"reply": f"⚠️ Error: {e}"}
+        return {"reply": f"⚠ Error: {e}"}
 
 
 
