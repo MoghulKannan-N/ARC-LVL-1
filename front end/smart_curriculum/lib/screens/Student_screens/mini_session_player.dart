@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:smart_curriculum/config.dart';
 import 'package:smart_curriculum/services/Student_service/student_api_service.dart';
 import 'package:smart_curriculum/utils/constants.dart';
 
@@ -20,8 +18,6 @@ class _MiniSessionPlayerState extends State<MiniSessionPlayer> {
 
   Map<int, String> selectedAnswers = {}; // stores selected mcq answers
 
-  String get baseUrl => aiBase;
-
   @override
   void initState() {
     super.initState();
@@ -29,49 +25,45 @@ class _MiniSessionPlayerState extends State<MiniSessionPlayer> {
   }
 
   // --------------------------------------------------------
-  // SUBMIT QUIZ → /complete_mini_session
+  // SUBMIT QUIZ → /complete_mini_session (uses ApiService)
   // --------------------------------------------------------
   Future<void> submitQuiz() async {
     if (submitting) return;
 
     final studentId = ApiService.loggedInStudentId;
-    if (studentId == null) return;
-
-    setState(() => submitting = true);
-
-    final url = Uri.parse("$baseUrl/complete_mini_session");
-
-    final answersJson = {
-      "answers": selectedAnswers.map((k, v) => MapEntry(k.toString(), v))
-    };
-
-    final res = await http.post(url, body: {
-      "student_id": studentId.toString(),
-      "mini_session_id": data["mini_session_id"].toString(),
-      "quiz_answers": jsonEncode(answersJson),
-    });
-
-    setState(() => submitting = false);
-
-    if (res.statusCode != 200) {
-      _showDialog("Error", "Something went wrong! (${res.statusCode})");
+    if (studentId == null) {
+      _showDialog("Error", "Student not logged in.");
       return;
     }
 
-    final result = jsonDecode(res.body);
+    setState(() => submitting = true);
 
-    // Backend now returns: message: "Quiz passed" OR "Split..."
-    final msg = result["message"].toString();
+    final res = await ApiService.completeMiniSession(
+      studentId: studentId,
+      miniSessionId: data["mini_session_id"],
+      answersMap: selectedAnswers,
+    );
+
+    setState(() => submitting = false);
+
+    if (res == null || res.containsKey("_error")) {
+      _showDialog("Error", "Something went wrong! (${res?["_error"] ?? "unknown"})");
+      return;
+    }
+
+    final msg = (res["message"] ?? "").toString();
 
     if (msg.contains("Split")) {
       _showDialog("Need More Practice", msg);
-    } else if (msg.contains("passed")) {
+    } else if (msg.toLowerCase().contains("passed")) {
       _showDialog("Great Job!", msg);
+    } else {
+      _showDialog("Result", msg);
     }
 
     // Load next session automatically
     await Future.delayed(const Duration(milliseconds: 400));
-    loadNextSession();
+    await loadNextSession();
   }
 
   // --------------------------------------------------------
@@ -81,15 +73,15 @@ class _MiniSessionPlayerState extends State<MiniSessionPlayer> {
     final id = ApiService.loggedInStudentId;
     if (id == null) return;
 
-    final url = Uri.parse("$baseUrl/next_mini_session?student_id=$id");
-    final res = await http.get(url);
+    final res = await ApiService.getNextMiniSession(id);
 
-    if (res.statusCode != 200) return;
-
-    final next = jsonDecode(res.body);
+    if (res == null || res.containsKey("_error")) {
+      _showDialog("Error", "Unable to fetch next session.");
+      return;
+    }
 
     // If roadmap is fully complete
-    if (next["mini_session_id"] == 0) {
+    if ((res["mini_session_id"] ?? 0) == 0) {
       _showDialog("🎉 Completed", "All sessions are done!");
       return;
     }
@@ -97,7 +89,7 @@ class _MiniSessionPlayerState extends State<MiniSessionPlayer> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => MiniSessionPlayer(session: next),
+        builder: (_) => MiniSessionPlayer(session: res),
       ),
     );
   }
@@ -128,13 +120,16 @@ class _MiniSessionPlayerState extends State<MiniSessionPlayer> {
     List quiz = data["quiz"] ?? [];
 
     if (quiz.isEmpty) {
-      return const Text("No quiz available.");
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: const Text("No quiz available.", style: TextStyle(fontSize: 16)),
+      );
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 20),
+        const SizedBox(height: 12),
         const Text(
           "Quiz",
           style: TextStyle(
@@ -150,8 +145,9 @@ class _MiniSessionPlayerState extends State<MiniSessionPlayer> {
           List options = q["options"] ?? [];
 
           return Card(
-            elevation: 2,
+            elevation: 1,
             margin: const EdgeInsets.symmetric(vertical: 8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -159,10 +155,9 @@ class _MiniSessionPlayerState extends State<MiniSessionPlayer> {
                 children: [
                   Text(
                     "Q${index + 1}. ${q["question"]}",
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600),
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
 
                   ...options.map((opt) {
                     return RadioListTile<String>(
@@ -181,22 +176,6 @@ class _MiniSessionPlayerState extends State<MiniSessionPlayer> {
         }),
 
         const SizedBox(height: 20),
-
-        Center(
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor,
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-            ),
-            onPressed: submitting ? null : submitQuiz,
-            child: submitting
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text("Submit Quiz",
-                    style: TextStyle(fontSize: 18, color: Colors.white)),
-          ),
-        ),
-
-        const SizedBox(height: 40),
       ],
     );
   }
@@ -206,82 +185,141 @@ class _MiniSessionPlayerState extends State<MiniSessionPlayer> {
   // --------------------------------------------------------
   @override
   Widget build(BuildContext context) {
-    final parent = data["parent_subtopic"] ?? "";
-    final title = data["mini_subtopic"] ?? "";
-    final content = data["content"] ?? "";
+    final parent = (data["parent_subtopic"] ?? "").toString();
+    final title = (data["mini_subtopic"] ?? "").toString();
+    final content = (data["content"] ?? "").toString();
 
     final List resources = data["resources"] ?? [];
     final List videos = data["videos"] ?? [];
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        backgroundColor: AppColors.primaryColor,
-        foregroundColor: Colors.white,
-      ),
-
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return SafeArea(
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(title.isNotEmpty ? title : "Mini Session"),
+          backgroundColor: AppColors.primaryColor,
+          foregroundColor: Colors.white,
+        ),
+        body: Column(
           children: [
-            if (parent.isNotEmpty)
-              Text(
-                parent,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.subtitleColor,
+            // Content area (scrollable)
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Parent breadcrumb
+                    if (parent.isNotEmpty)
+                      Text(
+                        parent,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.subtitleColor,
+                        ),
+                      ),
+
+                    if (parent.isNotEmpty) const SizedBox(height: 8),
+
+                    // Title
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textColor,
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // CONTENT
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 6)],
+                      ),
+                      child: Text(
+                        content,
+                        style: const TextStyle(fontSize: 16, height: 1.5),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // RESOURCES
+                    if (resources.isNotEmpty) ...[
+                      const Text("Resources",
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryColor)),
+                      const SizedBox(height: 8),
+                      ...resources.map((r) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4.0),
+                            child: Text("• $r", style: const TextStyle(fontSize: 14)),
+                          )),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // VIDEOS
+                    if (videos.isNotEmpty) ...[
+                      const Text("Videos",
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryColor)),
+                      const SizedBox(height: 8),
+                      ...videos.map((v) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4.0),
+                            child: Text("• $v", style: const TextStyle(fontSize: 14)),
+                          )),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // QUIZ
+                    buildQuiz(),
+
+                    // small bottom spacing so submit button doesn't overlap content
+                    const SizedBox(height: 90),
+                  ],
                 ),
               ),
+            ),
 
-            const SizedBox(height: 10),
-
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textColor,
+            // Bottom action bar (Submit)
+            SafeArea(
+              top: false,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        "Questions: ${ (data['quiz'] ?? []).length }",
+                        style: const TextStyle(fontSize: 14, color: Colors.black54),
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: submitting ? null : submitQuiz,
+                      icon: submitting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.send),
+                      label: Text(submitting ? "Submitting..." : "Submit Quiz"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryColor,
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-
-            const SizedBox(height: 20),
-
-            // CONTENT
-            Text(
-              content,
-              style: const TextStyle(fontSize: 16, height: 1.5),
-            ),
-
-            const SizedBox(height: 20),
-
-            // RESOURCES
-            if (resources.isNotEmpty) ...[
-              const Text("Resources",
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primaryColor)),
-              const SizedBox(height: 8),
-              ...resources.map((r) => Text("• $r")),
-              const SizedBox(height: 20),
-            ],
-
-            // VIDEOS
-            if (videos.isNotEmpty) ...[
-              const Text("Videos",
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primaryColor)),
-              const SizedBox(height: 8),
-              ...videos.map((v) => Text("• $v")),
-              const SizedBox(height: 20),
-            ],
-
-            // QUIZ
-            buildQuiz(),
           ],
         ),
       ),

@@ -2,8 +2,6 @@
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:smart_curriculum/config.dart';
 import 'package:smart_curriculum/services/Student_service/student_api_service.dart';
 import 'package:smart_curriculum/utils/constants.dart';
 
@@ -22,8 +20,6 @@ class _AiChatbotScreenState extends State<AiChatbotScreen> {
   bool sending = false;
   bool aiTyping = false;
 
-  String get apiUrl => "$aiBase/chatbot";
-
   @override
   void initState() {
     super.initState();
@@ -38,7 +34,7 @@ class _AiChatbotScreenState extends State<AiChatbotScreen> {
   }
 
   // -------------------------------------------------------------------
-  // SEND MESSAGE TO AI
+  // SEND MESSAGE TO AI (uses ApiService.chatbot)
   // -------------------------------------------------------------------
   Future<void> sendMsg() async {
     final text = controller.text.trim();
@@ -54,26 +50,15 @@ class _AiChatbotScreenState extends State<AiChatbotScreen> {
     scrollToBottom();
 
     try {
-      final res = await http.post(
-        Uri.parse(apiUrl),
-        body: {"message": text},
-      );
+      final reply = await ApiService.chatbot(text);
 
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-
+      if (reply != null) {
         setState(() {
-          messages.add({
-            "sender": "bot",
-            "text": data["reply"] ?? "I couldn't understand that."
-          });
+          messages.add({"sender": "bot", "text": reply});
         });
       } else {
         setState(() {
-          messages.add({
-            "sender": "bot",
-            "text": "⚠️ Server error: ${res.statusCode}"
-          });
+          messages.add({"sender": "bot", "text": "⚠️ I couldn't understand that."});
         });
       }
     } catch (e) {
@@ -95,11 +80,13 @@ class _AiChatbotScreenState extends State<AiChatbotScreen> {
   // -------------------------------------------------------------------
   void scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 150), () {
-      scroll.animateTo(
-        scroll.position.maxScrollExtent + 100,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-      );
+      try {
+        scroll.animateTo(
+          scroll.position.maxScrollExtent + 100,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      } catch (_) {}
     });
   }
 
@@ -126,7 +113,7 @@ class _AiChatbotScreenState extends State<AiChatbotScreen> {
         ),
         constraints: const BoxConstraints(maxWidth: 280),
         child: Text(
-          msg["text"]!,
+          msg["text"] ?? "",
           style: TextStyle(
             color: user ? Colors.white : AppColors.textColor,
             fontSize: 15,
@@ -149,7 +136,6 @@ class _AiChatbotScreenState extends State<AiChatbotScreen> {
         backgroundColor: AppColors.primaryColor,
         foregroundColor: Colors.white,
       ),
-
       body: Column(
         children: [
           Expanded(
