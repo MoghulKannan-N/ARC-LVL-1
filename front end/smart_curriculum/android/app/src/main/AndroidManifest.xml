@@ -43,7 +43,7 @@
     <!-- ==================================================== -->
 
     <application
-        android:label="Student"
+        android:label="ARC"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true"
