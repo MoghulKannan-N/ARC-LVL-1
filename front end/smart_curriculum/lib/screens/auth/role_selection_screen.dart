@@ -18,6 +18,33 @@ class RoleSelectionScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // Circular Logo (enlarged)
+              Container(
+                height: 150, // Increased size
+                width: 150,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(6.0), // Reduced padding to enlarge visible logo
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/logo.png',
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
+
               // Title
               const Text(
                 AppStrings.appName,
@@ -29,6 +56,7 @@ class RoleSelectionScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
+
               const Text(
                 "Please select your role to continue",
                 style: TextStyle(
@@ -45,7 +73,6 @@ class RoleSelectionScreen extends StatelessWidget {
                 label: "I'm a Student",
                 color: AppColors.primaryColor,
                 onPressed: () {
-                  // Push so the RoleSelection remains beneath the Login screen.
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -64,7 +91,6 @@ class RoleSelectionScreen extends StatelessWidget {
                 label: "I'm a Teacher",
                 color: Colors.deepOrange,
                 onPressed: () {
-                  // Push so the RoleSelection remains beneath the Login screen.
                   Navigator.push(
                     context,
                     MaterialPageRoute(

@@ -76,7 +76,7 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
             const Icon(Icons.school, size: 100, color: AppColors.primaryColor),
             const SizedBox(height: 24),
             const Text(
-              'Smart Curriculum - Student Login',
+              ' ARC Smart Curriculum',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 26,

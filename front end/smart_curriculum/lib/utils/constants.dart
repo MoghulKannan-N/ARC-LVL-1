@@ -14,7 +14,7 @@ class AppColors {
 
 class AppStrings {
   // ✅ Shared constants
-  static const appName = 'Smart Curriculum';
+  static const appName = 'ARC Smart Curriculum';
   static const settings = 'Settings'; // 🆕 Added for Settings screen
   static const emailHint = 'Enter your email';
   static const passwordHint = 'Enter your password';
