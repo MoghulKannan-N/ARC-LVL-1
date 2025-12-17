@@ -7,7 +7,6 @@ import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.da
 import 'package:smart_curriculum/services/Student_service/student_api_service.dart'
     as student_api;
 
-/// 👨‍🏫 Teacher Login Screen — authenticates teacher and redirects to dashboard.
 class TeacherLoginScreen extends StatefulWidget {
   const TeacherLoginScreen({super.key});
 
@@ -21,28 +20,47 @@ class _TeacherLoginScreenState extends State<TeacherLoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
-  /// Handles teacher login with session cleanup
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
-    // 🧹 Clear student session before logging teacher in
-    await student_api.ApiService.clearLoginState();
-
     final username = _usernameController.text.trim();
     final password = _passwordController.text.trim();
 
-    final success = await teacher_api.ApiService.teacherLogin(username, password);
+    // ===================================================
+    // 🔓 LOCAL LOGIN BYPASS (NO BACKEND CALL)
+    // ===================================================
+    if (username == 'arc' && password == 'arc') {
+      await student_api.ApiService.clearLoginState();
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('currentRole', 'teacher');
+
+      setState(() => _isLoading = false);
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const TeacherHomeScreen()),
+        (route) => false,
+      );
+      return;
+    }
+
+    // ===================================================
+    // 🔐 NORMAL BACKEND LOGIN
+    // ===================================================
+    await student_api.ApiService.clearLoginState();
+
+    final success =
+        await teacher_api.ApiService.teacherLogin(username, password);
 
     setState(() => _isLoading = false);
 
     if (success) {
-      // ✅ Persist role = teacher
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('currentRole', 'teacher');
 
-      // ✅ Clean navigation
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const TeacherHomeScreen()),
@@ -60,15 +78,16 @@ class _TeacherLoginScreenState extends State<TeacherLoginScreen> {
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 80),
-            const Icon(Icons.school, size: 100, color: AppColors.primaryColor),
+            const Icon(Icons.school,
+                size: 100, color: AppColors.primaryColor),
             const SizedBox(height: 24),
             const Text(
-              ' ARC Smart Curriculum',
+              'ARC Smart Curriculum',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 26,
@@ -83,7 +102,7 @@ class _TeacherLoginScreenState extends State<TeacherLoginScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(24.0),
+                padding: const EdgeInsets.all(24),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -130,7 +149,8 @@ class _TeacherLoginScreenState extends State<TeacherLoginScreen> {
                           ),
                         ),
                         child: _isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
                             : const Text(
                                 'LOGIN',
                                 style: TextStyle(

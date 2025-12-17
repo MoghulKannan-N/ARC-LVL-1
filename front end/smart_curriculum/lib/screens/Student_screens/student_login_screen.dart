@@ -9,8 +9,6 @@ import 'package:smart_curriculum/services/Student_service/student_api_service.da
 import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.dart'
     as teacher_api;
 
-/// 🧠 Student login screen that validates user credentials
-/// and redirects to home after successful login.
 class StudentLoginScreen extends StatefulWidget {
   const StudentLoginScreen({super.key});
 
@@ -29,12 +27,41 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
 
     setState(() => _isLoading = true);
 
-    // 🧹 Clear teacher session before new student login
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text.trim();
+
+    // ===================================================
+    // 🔓 LOCAL LOGIN BYPASS (NO BACKEND)
+    // ===================================================
+    if (username == 'arc' && password == 'arc') {
+      // Clear teacher session to avoid role conflict
+      await teacher_api.ApiService.clearLoginState();
+
+      // Save role as student
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('currentRole', 'student');
+
+      setState(() => _isLoading = false);
+
+      // Navigate directly to Student Home
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => StudentHomeScreen(studentName: username),
+        ),
+        (route) => false,
+      );
+      return;
+    }
+
+    // ===================================================
+    // 🔐 NORMAL BACKEND LOGIN
+    // ===================================================
     await teacher_api.ApiService.clearLoginState();
 
     final success = await student_api.ApiService.studentLogin(
-      _usernameController.text.trim(),
-      _passwordController.text.trim(),
+      username,
+      password,
     );
 
     setState(() => _isLoading = false);
@@ -46,14 +73,12 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
       return;
     }
 
-    // ✅ Save current role = student
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('currentRole', 'student');
 
-    final studentName = student_api.ApiService.loggedInStudentName ??
-        _usernameController.text.trim();
+    final studentName =
+        student_api.ApiService.loggedInStudentName ?? username;
 
-    // 🔁 Clean navigation to Student Home
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
@@ -73,10 +98,11 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 80),
-            const Icon(Icons.school, size: 100, color: AppColors.primaryColor),
+            const Icon(Icons.school,
+                size: 100, color: AppColors.primaryColor),
             const SizedBox(height: 24),
             const Text(
-              ' ARC Smart Curriculum',
+              'ARC Smart Curriculum',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 26,
@@ -155,5 +181,12 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 }
