@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:smart_curriculum/utils/constants.dart';
+import 'package:flutter/services.dart';
 
 class ArcStatsScreen extends StatelessWidget {
   const ArcStatsScreen({super.key});
+  static const MethodChannel _overlayChannel = MethodChannel('arc_overlay');
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +102,71 @@ class ArcStatsScreen extends StatelessWidget {
 
             const SizedBox(height: 40),
 
+            // ---- Overlay Mode Button ----
+            ElevatedButton.icon(
+              icon: const Icon(Icons.open_in_new, color: Colors.white),
+              label: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12.0),
+                child: Text(
+                  "OVERLAY MODE",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor,
+                minimumSize: const Size(double.infinity, 55),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 4,
+              ),
+              onPressed: () async {
+                try {
+                  final result =
+                      await _overlayChannel.invokeMethod('startOverlay');
+                  if (result == "permission_required") {
+                    // Show message that user needs to grant permission
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Please grant overlay permission in settings to use overlay mode',
+                          ),
+                          duration: Duration(seconds: 5),
+                        ),
+                      );
+                    }
+                  } else if (result == "service_started") {
+                    // Overlay started successfully
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Overlay mode activated!'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  debugPrint("Overlay error: $e");
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to start overlay: $e'),
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+
+            const SizedBox(height: 20),
+
             // ---- Assign Work Button ----
             Center(
               child: ElevatedButton.icon(
@@ -192,8 +259,7 @@ Widget _trendTile(String title, String subtitle) {
           style: const TextStyle(
               fontWeight: FontWeight.bold, color: AppColors.textColor)),
       subtitle: Text(subtitle,
-          style:
-              const TextStyle(fontSize: 13, color: AppColors.subtitleColor)),
+          style: const TextStyle(fontSize: 13, color: AppColors.subtitleColor)),
     ),
   );
 }

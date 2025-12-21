@@ -2,6 +2,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- ==================================================== -->
+    <!-- OVERLAY PERMISSIONS -->
+    <!-- ==================================================== -->
+
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+
+    <!-- ==================================================== -->
     <!-- BLUETOOTH + LOCATION PERMISSIONS (all Android levels) -->
     <!-- ==================================================== -->
 
@@ -54,9 +63,17 @@
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+
+            
+
+            android:configChanges="
+                orientation|keyboardHidden|keyboard|
+                screenSize|smallestScreenSize|screenLayout|
+                locale|layoutDirection|fontScale|density|uiMode"
+
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
+
 
             <!-- Flutter theming -->
             <meta-data
@@ -70,6 +87,22 @@
             </intent-filter>
 
         </activity>
+
+        <!-- ==================================================== -->
+        <!-- ARC STATS OVERLAY SERVICE -->
+        <!-- ==================================================== -->
+
+        <service
+            android:name=".ArcOverlayService"
+            android:exported="false"
+            android:enabled="true"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="overlay" />
+        </service>
+
+
 
         <!-- Required for Flutter embedding -->
         <meta-data

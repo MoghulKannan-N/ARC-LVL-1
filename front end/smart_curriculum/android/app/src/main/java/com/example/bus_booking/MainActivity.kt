@@ -1,5 +1,8 @@
 package com.example.bus_booking
 
+import com.example.bus_booking.ArcOverlayChannel
+
+
 import android.Manifest
 import android.bluetooth.*
 import android.bluetooth.le.*
@@ -42,6 +45,10 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         requestAllPermissions()
+
+         // Overlay registration
+         com.example.bus_booking.ArcOverlayChannel.register(this, flutterEngine)
+
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
@@ -294,4 +301,6 @@ class MainActivity : FlutterActivity() {
         stopRebroadcast()
         handler.removeCallbacksAndMessages(null)
     }
+    
+
 }
