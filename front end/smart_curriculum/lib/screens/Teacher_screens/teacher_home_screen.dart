@@ -5,11 +5,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_curriculum/utils/constants.dart';
 import 'package:smart_curriculum/screens/Teacher_screens/attendance_screen.dart';
 import 'package:smart_curriculum/screens/Teacher_screens/configure_settings_screen.dart';
-import 'package:smart_curriculum/screens/Teacher_screens/arc_stats_screen.dart';
 import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.dart'
     as teacher_api;
 import 'package:smart_curriculum/services/Student_service/student_api_service.dart'
     as student_api;
+import 'package:smart_curriculum/screens/Teacher_screens/arc_stats_screen.dart';
+import 'package:smart_curriculum/screens/Teacher_screens/add_student_screen.dart';
+
 import 'package:smart_curriculum/screens/auth/role_selection_screen.dart';
 
 class TeacherHomeScreen extends StatefulWidget {
@@ -25,15 +27,24 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   final List<Widget> _screens = const [
     AttendanceScreen(),
     TeacherHomeContent(),
-    ArcStatsScreen(),
+    ArcStatsScreen(), // index 2 ✅ CORRECT
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text(AppStrings.appName),
+        automaticallyImplyLeading:
+            false, // ✅ DYNAMIC TITLE — THIS IS THE ONLY CHANGE
+        centerTitle: false,
+
+        title: Text(
+          _currentIndex == 0
+              ? "Attendance Management"
+              : _currentIndex == 2
+                  ? "ARC's Stats"
+                  : AppStrings.appName,
+        ),
         backgroundColor: AppColors.primaryColor,
         foregroundColor: Colors.white,
         actions: [
@@ -77,16 +88,10 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
           ),
         ],
       ),
-
-      // ---- Main Body Controlled by Bottom Nav ----
       body: _screens[_currentIndex],
-
-      // ---- Bottom Navigation Bar ----
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() => _currentIndex = index);
-        },
+        onTap: (index) => setState(() => _currentIndex = index),
         selectedItemColor: AppColors.primaryColor,
         unselectedItemColor: AppColors.subtitleColor,
         items: const [
@@ -99,8 +104,8 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart_outlined),
-            label: "ARC's Stats",
+            icon: Icon(Icons.quiz_outlined),
+            label: 'Quiz',
           ),
         ],
       ),
@@ -108,9 +113,9 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   }
 }
 
-//
-// ================= HOME SCREEN CONTENT =================
-//
+/// =====================================================================
+/// HOME SCREEN CONTENT
+/// =====================================================================
 
 class TeacherHomeContent extends StatelessWidget {
   const TeacherHomeContent({super.key});
@@ -123,30 +128,6 @@ class TeacherHomeContent extends StatelessWidget {
       return "Beacon started successfully";
     } catch (e) {
       return "Error: $e";
-    }
-  }
-
-  // -------------------- Fetch Attendance Stats --------------------
-  Future<Map<String, int>> _fetchAttendanceStats() async {
-    try {
-      final allStudents = await teacher_api.ApiService.getAllStudents();
-      if (allStudents == null) {
-        return {"total": 0, "present": 0};
-      }
-
-      int total = allStudents.length;
-      int present = 0;
-
-      for (var student in allStudents) {
-        final status =
-            await teacher_api.ApiService.getAttendanceStatus(student["name"]);
-        if (status == "PRESENT") present++;
-      }
-
-      return {"total": total, "present": present};
-    } catch (e) {
-      debugPrint("Error fetching stats: $e");
-      return {"total": 0, "present": 0};
     }
   }
 
@@ -283,52 +264,21 @@ class TeacherHomeContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 40),
-
-          // ---------------- Dynamic Stats ----------------
-          FutureBuilder<Map<String, int>>(
-            future: _fetchAttendanceStats(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (snapshot.hasError || !snapshot.hasData) {
-                return const Center(child: Text("Failed to load stats"));
-              }
-
-              final stats = snapshot.data!;
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  StatCard(title: "Total Students", value: "${stats["total"]}"),
-                  StatCard(
-                      title: "Present Today", value: "${stats["present"]}"),
-                ],
-              );
-            },
+          const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              StatCard(title: "Total Students", value: "0"),
+              StatCard(title: "Present Today", value: "0"),
+            ],
           ),
-
           const SizedBox(height: 40),
-
-          // ---- Configure Settings Button (white text fixed) ----
           ElevatedButton.icon(
             onPressed: () => _showStudentNameDialog(context),
             icon: const Icon(Icons.settings, color: Colors.white),
-            label: const Text(
-              "Configure Settings",
-              style: TextStyle(
-                color: Colors.white, // Text color fixed to white
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            label: const Text("Configure Settings"),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryColor,
               padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 4,
             ),
           ),
         ],
@@ -337,9 +287,9 @@ class TeacherHomeContent extends StatelessWidget {
   }
 }
 
-//
-// ================== STATS CARD ==================
-//
+/// =====================================================================
+/// STATS CARD
+/// =====================================================================
 
 class StatCard extends StatelessWidget {
   final String title;
@@ -371,9 +321,9 @@ class StatCard extends StatelessWidget {
   }
 }
 
-//
-// ============= BLUETOOTH TIMER DIALOG =============
-//
+/// =====================================================================
+/// BLUETOOTH TIMER DIALOG
+/// =====================================================================
 
 class BluetoothTimerDialog extends StatefulWidget {
   final String sessionType;
