@@ -1,3 +1,3 @@
 const String flask ="https://jam-federal-www-puts.trycloudflare.com";
-const String sb ="https://without-home-area-wilderness.trycloudflare.com";
-const String aiBase ="https://thinking-adapted-accepted-dolls.trycloudflare.com";
+const String sb ="https://cosmetics-instruction-next-trips.trycloudflare.com";
+const String aiBase ="https://feet-hunter-consent-rod.trycloudflare.com";
