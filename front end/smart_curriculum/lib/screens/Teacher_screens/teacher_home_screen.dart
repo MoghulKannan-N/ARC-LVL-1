@@ -94,18 +94,19 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
         onTap: (index) => setState(() => _currentIndex = index),
         selectedItemColor: AppColors.primaryColor,
         unselectedItemColor: AppColors.subtitleColor,
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.assignment_turned_in_outlined),
             label: 'Attendance',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+            icon: Icon(Icons.home_outlined),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.quiz_outlined),
-            label: 'Quiz',
+            icon: Icon(Icons.bar_chart_outlined), // ✅ ORIGINAL STATS ICON
+            label: "ARC's Stats",
           ),
         ],
       ),

@@ -37,12 +37,22 @@ class RoadmapItem {
 
   factory RoadmapItem.fromMap(Map<String, dynamic> m) {
     return RoadmapItem(
-      id: (m['id'] is int) ? m['id'] : int.tryParse(m['id']?.toString() ?? '') ?? 0,
+      id: (m['id'] is int)
+          ? m['id']
+          : int.tryParse(m['id']?.toString() ?? '') ?? 0,
       topic: (m['topic'] ?? '').toString(),
       subtopic: (m['subtopic'] ?? '').toString(),
       status: (m['status'] ?? 'pending').toString(),
-      parentId: m['parent_id'] is int ? m['parent_id'] : (m['parent_id'] != null ? int.tryParse(m['parent_id'].toString()) : null),
-      position: m['position'] is int ? m['position'] : (m['position'] != null ? int.tryParse(m['position'].toString()) : null),
+      parentId: m['parent_id'] is int
+          ? m['parent_id']
+          : (m['parent_id'] != null
+              ? int.tryParse(m['parent_id'].toString())
+              : null),
+      position: m['position'] is int
+          ? m['position']
+          : (m['position'] != null
+              ? int.tryParse(m['position'].toString())
+              : null),
       resources: m['resources'] is List ? m['resources'] : [],
     );
   }
@@ -151,7 +161,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   }
 
   bool _allChildrenDone(RoadmapItem parent) {
-    final children = roadmapItems.where((c) => c.parentId == parent.id).toList();
+    final children =
+        roadmapItems.where((c) => c.parentId == parent.id).toList();
     if (children.isEmpty) return false;
     return children.every((c) => c.status == 'done');
   }
@@ -170,7 +181,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
     // If item is a child -> unlock based on sibling sequence
     if (item.parentId != null) {
-      final siblings = ordered.where((t) => t.parentId == item.parentId).toList()
+      final siblings = ordered
+          .where((t) => t.parentId == item.parentId)
+          .toList()
         ..sort((a, b) => (a.position ?? 0).compareTo(b.position ?? 0));
       final idx = siblings.indexWhere((s) => s.id == item.id);
       if (idx == -1) return false;
@@ -210,7 +223,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     final parents = roadmapItems.where((i) => i.parentId == null).toList()
       ..sort((a, b) => (a.position ?? 0).compareTo(b.position ?? 0));
     return parents.map((parent) {
-      final children = roadmapItems.where((c) => c.parentId == parent.id).toList()
+      final children = roadmapItems
+          .where((c) => c.parentId == parent.id)
+          .toList()
         ..sort((a, b) => (a.position ?? 0).compareTo(b.position ?? 0));
       return {
         "parent": parent,
@@ -220,10 +235,15 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   }
 
   Map<String, int> getProgress() {
-    if (roadmapItems.isEmpty) return {'percentage': 0, 'completed': 0, 'total': 0};
+    if (roadmapItems.isEmpty)
+      return {'percentage': 0, 'completed': 0, 'total': 0};
     final completed = roadmapItems.where((i) => i.status == 'done').length;
     final percentage = ((completed / roadmapItems.length) * 100).round();
-    return {'percentage': percentage, 'completed': completed, 'total': roadmapItems.length};
+    return {
+      'percentage': percentage,
+      'completed': completed,
+      'total': roadmapItems.length
+    };
   }
 
   // ------------------- Actions -------------------
@@ -270,11 +290,13 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
     if (profile != null) {
       strength = (profile['strength'] ?? profile['strengths'] ?? '').toString();
-      weakness = (profile['weakness'] ?? profile['weaknesses'] ?? '').toString();
+      weakness =
+          (profile['weakness'] ?? profile['weaknesses'] ?? '').toString();
       interest = (profile['interest'] ?? profile['interests'] ?? '').toString();
     }
 
-    if (strength.isEmpty && weakness.isEmpty && interest.isEmpty) return 'General Study Skills';
+    if (strength.isEmpty && weakness.isEmpty && interest.isEmpty)
+      return 'General Study Skills';
 
     final prompt = """
 Use student profile:
@@ -292,7 +314,8 @@ Return ONLY the topic name without explanation.
   }
 
   void _openChat() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const AiChatbotScreen()));
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const AiChatbotScreen()));
   }
 
   void _onTopicClick(RoadmapItem topic) {
@@ -332,9 +355,12 @@ Return ONLY the topic name without explanation.
           final res = await ApiService.openMiniSession(miniId);
           setState(() => loading = false);
 
-          if (res == null || res.containsKey("_error") || (res is Map && res.containsKey("detail"))) {
+          if (res == null ||
+              res.containsKey("_error") ||
+              (res is Map && res.containsKey("detail"))) {
             setState(() {
-              statusMessage = "Could not open that session, trying next session...";
+              statusMessage =
+                  "Could not open that session, trying next session...";
             });
             await _openNextFallback();
             return;
@@ -392,19 +418,12 @@ Return ONLY the topic name without explanation.
 
     return SafeArea(
       child: Scaffold(
-        appBar: AppBar(
-          title: Text("AI Assistant — $studentName"),
-          backgroundColor: AppColors.primaryColor,
-          foregroundColor: Colors.white,
-        ),
-
         floatingActionButton: FloatingActionButton(
           mini: true,
           onPressed: _openChat,
           backgroundColor: AppColors.primaryColor,
           child: const Icon(Icons.question_answer),
         ),
-
         body: Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
           child: Column(
@@ -418,19 +437,26 @@ Return ONLY the topic name without explanation.
                       children: [
                         const Icon(Icons.map, size: 22, color: Colors.black87),
                         const SizedBox(width: 8),
-                        const Text('Learning Path', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+                        const Text('Learning Path',
+                            style: TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.w700)),
                       ],
                     ),
                   ),
 
                   // Circular progress
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.grey.shade300),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6)],
+                      boxShadow: [
+                        BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 6)
+                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -445,16 +471,19 @@ Return ONLY the topic name without explanation.
                                 value: (progress['percentage'] ?? 0) / 100,
                                 strokeWidth: 4,
                                 backgroundColor: Colors.grey.shade200,
-                                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppColors.primaryColor),
                               ),
                               Center(
-                                child: Text("${progress['percentage']}%", style: const TextStyle(fontSize: 12)),
+                                child: Text("${progress['percentage']}%",
+                                    style: const TextStyle(fontSize: 12)),
                               )
                             ],
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text("${progress['completed']}/${progress['total']}", style: const TextStyle(fontSize: 14)),
+                        Text("${progress['completed']}/${progress['total']}",
+                            style: const TextStyle(fontSize: 14)),
                       ],
                     ),
                   ),
@@ -468,9 +497,14 @@ Return ONLY the topic name without explanation.
                 children: [
                   ElevatedButton(
                     onPressed: loading ? null : _onGenerateRoadmap,
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryColor),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryColor),
                     child: loading
-                        ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
                         : const Text("Generate Roadmap"),
                   ),
                   const SizedBox(width: 8),
@@ -494,35 +528,48 @@ Return ONLY the topic name without explanation.
               Expanded(
                 child: loadingRoadmap
                     ? Center(
-                        child: Column(mainAxisSize: MainAxisSize.min, children: const [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 8),
-                          Text("Loading roadmap...")
-                        ]),
+                        child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              CircularProgressIndicator(),
+                              SizedBox(height: 8),
+                              Text("Loading roadmap...")
+                            ]),
                       )
                     : (grouped.isEmpty
                         ? Center(
-                            child: Column(mainAxisSize: MainAxisSize.min, children: const [
-                              Icon(Icons.map, size: 48, color: Colors.grey),
-                              SizedBox(height: 8),
-                              Text("No roadmap yet. Generate one to get started.")
-                            ]),
+                            child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(Icons.map, size: 48, color: Colors.grey),
+                                  SizedBox(height: 8),
+                                  Text(
+                                      "No roadmap yet. Generate one to get started.")
+                                ]),
                           )
                         : ListView.separated(
                             padding: const EdgeInsets.only(bottom: 80, top: 6),
-                            separatorBuilder: (_, __) => const SizedBox(height: 12),
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 12),
                             itemCount: grouped.length,
                             itemBuilder: (context, i) {
-                              final parent = grouped[i]['parent'] as RoadmapItem;
-                              final children = grouped[i]['children'] as List<RoadmapItem>;
+                              final parent =
+                                  grouped[i]['parent'] as RoadmapItem;
+                              final children =
+                                  grouped[i]['children'] as List<RoadmapItem>;
                               final isParentOpen = canOpenTopic(parent);
                               return Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   color: Colors.grey.shade100,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.grey.shade200),
-                                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6)],
+                                  border:
+                                      Border.all(color: Colors.grey.shade200),
+                                  boxShadow: [
+                                    BoxShadow(
+                                        color: Colors.black.withOpacity(0.03),
+                                        blurRadius: 6)
+                                  ],
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -536,17 +583,21 @@ Return ONLY the topic name without explanation.
                                     ),
                                     if (children.isNotEmpty)
                                       Padding(
-                                        padding: const EdgeInsets.only(top: 12, left: 6),
+                                        padding: const EdgeInsets.only(
+                                            top: 12, left: 6),
                                         child: Column(
                                           children: children
                                               .map((c) => Padding(
-                                                    padding: const EdgeInsets.only(bottom: 8.0),
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                            bottom: 8.0),
                                                     child: TopicCard(
                                                       topic: c,
                                                       canOpen: canOpenTopic(c),
                                                       isChild: true,
                                                       isNextUp: nextUp == c.id,
-                                                      onTap: () => _onTopicClick(c),
+                                                      onTap: () =>
+                                                          _onTopicClick(c),
                                                     ),
                                                   ))
                                               .toList(),
@@ -609,10 +660,17 @@ class TopicCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isNextUp ? const Color(0xFFF0F9FF) : (isParent ? Colors.white : Colors.white),
+            color: isNextUp
+                ? const Color(0xFFF0F9FF)
+                : (isParent ? Colors.white : Colors.white),
             borderRadius: BorderRadius.circular(10),
-            border: isNextUp ? Border.all(color: statusColor, width: 1.6, style: BorderStyle.solid) : Border.all(color: Colors.transparent),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6)],
+            border: isNextUp
+                ? Border.all(
+                    color: statusColor, width: 1.6, style: BorderStyle.solid)
+                : Border.all(color: Colors.transparent),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6)
+            ],
           ),
           child: Row(
             children: [
@@ -630,14 +688,24 @@ class TopicCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(topic.subtopic, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black87)),
+                    Text(topic.subtopic,
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87)),
                     const SizedBox(height: 6),
-                    Text(topic.topic, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                    Text(topic.topic,
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.black54)),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
-              Text(displayStatus, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: statusColor)),
+              Text(displayStatus,
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: statusColor)),
             ],
           ),
         ),

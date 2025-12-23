@@ -10,6 +10,10 @@ import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.da
 import 'package:smart_curriculum/screens/auth/role_selection_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// ✅ IMPORT THE SAME KEY
+import 'package:smart_curriculum/screens/Student_screens/profile_screen.dart'
+    show profileScreenKey;
+
 class StudentHomeScreen extends StatefulWidget {
   final String studentName;
 
@@ -25,7 +29,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final screens = [
-      ProfileScreen(studentName: widget.studentName),
+      // ✅ ATTACH THE KEY HERE
+      ProfileScreen(
+        key: profileScreenKey,
+        studentName: widget.studentName,
+      ),
       const BluetoothScreen(),
       const AiAssistantScreen(),
     ];
@@ -34,9 +42,15 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       resizeToAvoidBottomInset: true,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text("Student Dashboard"),
         backgroundColor: AppColors.primaryColor,
         foregroundColor: Colors.white,
+        title: Text(
+          index == 0
+              ? "Student Profile"
+              : index == 1
+                  ? "Student Dashboard"
+                  : "AI Assistant — Student",
+        ),
         actions: [
           IconButton(
             tooltip: 'Logout',
@@ -88,15 +102,33 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
         ],
       ),
+      body: Stack(
+        children: [
+          // ---- MAIN CONTENT ----
+          SafeArea(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: _buildAdaptiveBody(screens[index]),
+            ),
+          ),
 
-      // ✅ Safe + Orientation + AI Screen Compatible Body
-      body: SafeArea(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          child: _buildAdaptiveBody(screens[index]),
-        ),
+          // ---- EDIT BUTTON (ONLY PROFILE TAB) ----
+          if (index == 0)
+            Positioned(
+              top: kToolbarHeight + 12, // below AppBar (white area)
+              right: 16,
+              child: FloatingActionButton(
+                mini: true,
+                backgroundColor: AppColors.primaryColor,
+                onPressed: () {
+                  // ✅ THIS NOW WORKS 100%
+                  profileScreenKey.currentState?.toggleEdit();
+                },
+                child: const Icon(Icons.edit, color: Colors.white),
+              ),
+            ),
+        ],
       ),
-
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: index,
         onTap: (i) => setState(() => index = i),
@@ -122,19 +154,17 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     );
   }
 
-  /// 🧩 Smart Wrapper: prevents overflow on rotation but skips double scroll
+  /// 🧩 Smart Wrapper
   Widget _buildAdaptiveBody(Widget screen) {
-    // These screens usually already handle scroll internally (avoid wrapping)
     final scrollSafeScreens = [
       const BluetoothScreen().runtimeType,
       const AiAssistantScreen().runtimeType,
     ];
 
     if (scrollSafeScreens.contains(screen.runtimeType)) {
-      return screen; // render as-is
+      return screen;
     }
 
-    // Wrap only non-scrollable layouts
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
