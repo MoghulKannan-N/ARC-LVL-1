@@ -1,0 +1,6 @@
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="72dp"
+    android:layout_height="72dp"
+    android:background="@drawable/arc_bubble_bg"
+    android:src="@android:drawable/ic_menu_delete"
+    android:padding="16dp" />

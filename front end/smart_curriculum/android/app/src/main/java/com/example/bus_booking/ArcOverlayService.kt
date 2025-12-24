@@ -149,7 +149,12 @@ class ArcOverlayService : Service() {
 
         // ================= CLOSE BUTTON =================
         overlayView.findViewById<ImageView>(R.id.closeBtn)
-            .setOnClickListener { stopSelf() }
+        .setOnClickListener {
+            // Start bubble when overlay is closed
+            startService(Intent(this, FloatingBubbleService::class.java))
+            stopSelf()
+        }
+
     }
 
     override fun onDestroy() {

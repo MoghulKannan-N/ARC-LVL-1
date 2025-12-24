@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 class ArcStatsScreen extends StatelessWidget {
   const ArcStatsScreen({super.key});
   static const MethodChannel _overlayChannel = MethodChannel('arc_overlay');
+  
 
   @override
   Widget build(BuildContext context) {

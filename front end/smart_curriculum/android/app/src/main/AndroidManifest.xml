@@ -102,6 +102,12 @@
                 android:value="overlay" />
         </service>
 
+        <!-- FLOATING BUBBLE -->
+        <service
+            android:name=".FloatingBubbleService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
+
 
 
         <!-- Required for Flutter embedding -->

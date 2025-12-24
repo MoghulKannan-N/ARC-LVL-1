@@ -1,10 +1,9 @@
 package com.example.bus_booking
-import android.os.Build
 
-
-import android.content.Context
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -13,38 +12,41 @@ object ArcOverlayChannel {
 
     private const val CHANNEL = "arc_overlay"
 
-    fun register(context: Context, flutterEngine: FlutterEngine) {
+    // 🔥 Activity instead of Context
+    fun register(activity: Activity, flutterEngine: FlutterEngine) {
+
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             CHANNEL
         ).setMethodCallHandler { call, result ->
 
             if (call.method == "startOverlay") {
-                if (!Settings.canDrawOverlays(context)) {
+
+                // 1️⃣ Check overlay permission
+                if (!Settings.canDrawOverlays(activity)) {
                     val intent = Intent(
                         Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:${context.packageName}")
+                        Uri.parse("package:${activity.packageName}")
                     )
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(intent)
+                    activity.startActivity(intent)
                     result.success("permission_required")
                     return@setMethodCallHandler
                 }
 
-                // ✅ Permission already granted → safe to start service
+                // 2️⃣ Start overlay service
+                val serviceIntent = Intent(activity, ArcOverlayService::class.java)
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(
-                        Intent(context, ArcOverlayService::class.java)
-                    )
+                    activity.startForegroundService(serviceIntent)
                 } else {
-                    context.startService(
-                        Intent(context, ArcOverlayService::class.java)
-                    )
+                    activity.startService(serviceIntent)
                 }
 
-                result.success("service_started")
+                // 3️⃣ 🔥 SEND APP TO BACKGROUND (THIS WAS MISSING)
+                activity.moveTaskToBack(true)
 
-                        }
-                    }
+                result.success("overlay_started")
+            }
+        }
     }
 }
