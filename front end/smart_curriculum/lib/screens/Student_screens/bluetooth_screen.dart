@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smart_curriculum/utils/constants.dart';
 import 'package:smart_curriculum/screens/Student_screens/face_recognition_screen.dart';
 
@@ -33,12 +34,33 @@ class BluetoothScreen extends StatelessWidget {
     }
   }
 
+  /// Prepares frontend-only attendance session metadata (1 hour)
+  /// NOTE: Monitoring is NOT started here
+  Future<void> _prepareAttendanceSession() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final DateTime startTime = DateTime.now();
+    final DateTime endTime = startTime.add(const Duration(hours: 1));
+
+    await prefs.setBool('session_active', true);
+    await prefs.setString('session_start_time', startTime.toIso8601String());
+    await prefs.setString('session_end_time', endTime.toIso8601String());
+
+    debugPrint("🕒 Attendance session prepared");
+    debugPrint("Start: $startTime");
+    debugPrint("End  : $endTime");
+  }
+
   /// Handles Bluetooth button tap
   Future<void> _handleBluetoothTap(BuildContext context) async {
+    // ---------------- DEBUG MODE ----------------
     if (debugMode) {
-      // Debug bypass
+      await _prepareAttendanceSession();
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("⚙️ Debug mode: Skipping Bluetooth check")),
+        const SnackBar(
+          content: Text("⚙️ Debug mode: Skipping Bluetooth check"),
+        ),
       );
 
       Navigator.push(
@@ -50,12 +72,12 @@ class BluetoothScreen extends StatelessWidget {
       return;
     }
 
-    // Normal flow → perform scan
+    // ---------------- NORMAL FLOW ----------------
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("🔍 Scanning for teacher beacon...")),
     );
 
-    bool found = await _scanForTeacher();
+    final bool found = await _scanForTeacher();
 
     if (!found) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -64,9 +86,13 @@ class BluetoothScreen extends StatelessWidget {
       return;
     }
 
-    // ✅ Found teacher → navigate to next screen
+    // ✅ Teacher beacon detected → prepare session metadata
+    await _prepareAttendanceSession();
+
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("✅ Teacher beacon found! Starting face recognition...")),
+      const SnackBar(
+        content: Text("✅ Teacher beacon found! Starting face recognition..."),
+      ),
     );
 
     Navigator.push(
@@ -103,7 +129,11 @@ class BluetoothScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              child: const Icon(Icons.bluetooth, size: 60, color: Colors.white),
+              child: const Icon(
+                Icons.bluetooth,
+                size: 60,
+                color: Colors.white,
+              ),
             ),
           ),
 

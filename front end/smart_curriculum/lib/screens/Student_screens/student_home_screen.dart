@@ -9,6 +9,7 @@ import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.da
     as teacher_api;
 import 'package:smart_curriculum/screens/auth/role_selection_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:smart_curriculum/main.dart'; // 🔔 notification helper
 
 // ✅ IMPORT THE SAME KEY
 import 'package:smart_curriculum/screens/Student_screens/profile_screen.dart'
@@ -23,13 +24,61 @@ class StudentHomeScreen extends StatefulWidget {
   State<StudentHomeScreen> createState() => _StudentHomeScreenState();
 }
 
-class _StudentHomeScreenState extends State<StudentHomeScreen> {
+class _StudentHomeScreenState extends State<StudentHomeScreen>
+    with WidgetsBindingObserver {
   int index = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // --------------------------------------------------
+  // 🔔 APP EXIT MONITORING (CORE LOGIC)
+  // --------------------------------------------------
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _handleAppExit();
+    }
+  }
+
+  Future<void> _handleAppExit() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final bool sessionActive = prefs.getBool('session_active') ?? false;
+    final String? endStr = prefs.getString('session_end_time');
+
+    if (!sessionActive || endStr == null) return;
+
+    final endTime = DateTime.parse(endStr);
+
+    // ⏱ Session expired → stop monitoring
+    if (DateTime.now().isAfter(endTime)) {
+      await prefs.setBool('session_active', false);
+      return;
+    }
+
+    // 🔔 STRONG WARNING NOTIFICATION
+    await showAttendanceWarningNotification(
+      title: "⚠ Attendance Warning",
+      body:
+          "You exited the attendance app.\n"
+          "If you do not return immediately, you may be marked ABSENT.",
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final screens = [
-      // ✅ ATTACH THE KEY HERE
       ProfileScreen(
         key: profileScreenKey,
         studentName: widget.studentName,
@@ -63,13 +112,16 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  title: const Text('Logout',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  title: const Text(
+                    'Logout',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   content: const Text('Are you sure you want to log out?'),
                   actions: [
                     TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(false),
-                        child: const Text('Cancel')),
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: const Text('Cancel'),
+                    ),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryColor,
@@ -104,24 +156,20 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       ),
       body: Stack(
         children: [
-          // ---- MAIN CONTENT ----
           SafeArea(
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 250),
               child: _buildAdaptiveBody(screens[index]),
             ),
           ),
-
-          // ---- EDIT BUTTON (ONLY PROFILE TAB) ----
           if (index == 0)
             Positioned(
-              top: kToolbarHeight + 12, // below AppBar (white area)
+              top: kToolbarHeight + 12,
               right: 16,
               child: FloatingActionButton(
                 mini: true,
                 backgroundColor: AppColors.primaryColor,
                 onPressed: () {
-                  // ✅ THIS NOW WORKS 100%
                   profileScreenKey.currentState?.toggleEdit();
                 },
                 child: const Icon(Icons.edit, color: Colors.white),

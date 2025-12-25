@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:smart_curriculum/utils/constants.dart';
 import 'package:smart_curriculum/services/Student_service/student_api_service.dart';
 
-// ✅ GlobalKey lives OUTSIDE
+/// ✅ GLOBAL KEY (required by StudentHomeScreen)
 final GlobalKey<_ProfileScreenState> profileScreenKey =
     GlobalKey<_ProfileScreenState>();
 
@@ -10,9 +10,9 @@ class ProfileScreen extends StatefulWidget {
   final String studentName;
 
   const ProfileScreen({
-    Key? key,
+    super.key,
     required this.studentName,
-  }) : super(key: key);
+  });
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -37,35 +37,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadProfile();
   }
 
-  // ✅ Called from StudentHomeScreen
+  /// ✅ CALLED FROM StudentHomeScreen FAB
   void toggleEdit() {
-    setState(() {
-      _isEditing = !_isEditing;
-    });
+    if (_isEditing) {
+      _saveProfile();
+    } else {
+      setState(() => _isEditing = true);
+    }
   }
 
   Future<void> _loadProfile() async {
-    setState(() => _isLoading = true);
     final data = await ApiService.fetchFullProfile(widget.studentName);
-
     if (data != null) {
       setState(() {
-        dobController.text = data["dateOfBirth"] ?? data["date_of_birth"] ?? "";
-        phoneController.text =
-            data["phoneNumber"] ?? data["phone_number"] ?? "";
-        strengthController.text = data["strengths"] ?? data["strength"] ?? "";
-        weaknessController.text = data["weaknesses"] ?? data["weakness"] ?? "";
-        interestController.text = data["interests"] ?? data["interest"] ?? "";
-        yearController.text =
-            data["yearOfStudying"] ?? data["year_of_studying"] ?? "";
+        dobController.text = data["dateOfBirth"] ?? "";
+        phoneController.text = data["phoneNumber"] ?? "";
+        strengthController.text = data["strength"] ?? "";
+        weaknessController.text = data["weakness"] ?? "";
+        interestController.text = data["interest"] ?? "";
+        yearController.text = data["yearOfStudying"] ?? "";
         courseController.text = data["course"] ?? "";
       });
     }
-
-    setState(() {
-      _isLoading = false;
-      _isEditing = false;
-    });
+    setState(() => _isLoading = false);
   }
 
   Future<void> _saveProfile() async {
@@ -75,32 +69,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
       "studentName": widget.studentName,
       "dateOfBirth": dobController.text,
       "phoneNumber": phoneController.text,
-      "strengths": strengthController.text,
-      "weaknesses": weaknessController.text,
-      "interests": interestController.text,
+      "strength": strengthController.text,
+      "weakness": weaknessController.text,
+      "interest": interestController.text,
       "yearOfStudying": yearController.text,
       "course": courseController.text,
     };
 
-    setState(() => _isEditing = false);
-
     final success =
         await ApiService.updateFullProfile(widget.studentName, updatedData);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success ? "Profile updated successfully!" : "Failed to update profile.",
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success
+              ? "Profile updated successfully!"
+              : "Failed to update profile."),
+          backgroundColor: success ? Colors.green : Colors.red,
         ),
-        backgroundColor: success ? Colors.green : Colors.red,
-      ),
-    );
-
-    if (success) {
-      await _loadProfile();
+      );
     }
 
-    setState(() => _isSaving = false);
+    setState(() {
+      _isSaving = false;
+      _isEditing = false;
+    });
   }
 
   @override
@@ -117,50 +110,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return _isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                CircleAvatar(
-                  radius: 55,
-                  backgroundColor: AppColors.primaryColor.withOpacity(0.15),
-                  child: const Icon(Icons.person,
-                      size: 70, color: AppColors.primaryColor),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  widget.studentName,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
-                    color: AppColors.textColor,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                _sectionTitle("Personal Info"),
-                _readonlyField("Name", widget.studentName),
-                _editableField("Date of Birth", dobController,
-                    hint: "DD-MM-YYYY"),
-                _editableField("Phone Number", phoneController,
-                    keyboard: TextInputType.phone),
-                const SizedBox(height: 20),
-                _sectionTitle("Academic Info"),
-                _editableField("Year of Studying", yearController),
-                _editableField("Course", courseController),
-                const SizedBox(height: 20),
-                _sectionTitle("Skills & Interests"),
-                _editableField("Strengths", strengthController),
-                _editableField("Weaknesses", weaknessController),
-                _editableField("Interests", interestController),
-                if (_isSaving) ...[
-                  const SizedBox(height: 20),
-                  const CircularProgressIndicator(),
-                ]
-              ],
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 55,
+            backgroundColor: AppColors.primaryColor.withOpacity(0.15),
+            child: const Icon(Icons.person,
+                size: 70, color: AppColors.primaryColor),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            widget.studentName,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              color: AppColors.textColor,
             ),
-          );
+          ),
+          const SizedBox(height: 20),
+          _sectionTitle("Personal Info"),
+          _readonlyField("Name", widget.studentName),
+          _editableField("Date of Birth", dobController,
+              hint: "DD-MM-YYYY"),
+          _editableField("Phone Number", phoneController,
+              keyboard: TextInputType.phone),
+          const SizedBox(height: 20),
+          _sectionTitle("Academic Info"),
+          _editableField("Year of Studying", yearController),
+          _editableField("Course", courseController),
+          const SizedBox(height: 20),
+          _sectionTitle("Skills & Interests"),
+          _editableField("Strengths", strengthController),
+          _editableField("Weaknesses", weaknessController),
+          _editableField("Interests", interestController),
+          if (_isSaving) ...[
+            const SizedBox(height: 20),
+            const CircularProgressIndicator(),
+          ],
+        ],
+      ),
+    );
   }
 
   Widget _sectionTitle(String title) => Align(

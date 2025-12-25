@@ -10,8 +10,6 @@ import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.da
 import 'package:smart_curriculum/services/Student_service/student_api_service.dart'
     as student_api;
 import 'package:smart_curriculum/screens/Teacher_screens/arc_stats_screen.dart';
-import 'package:smart_curriculum/screens/Teacher_screens/add_student_screen.dart';
-
 import 'package:smart_curriculum/screens/auth/role_selection_screen.dart';
 
 class TeacherHomeScreen extends StatefulWidget {
@@ -27,17 +25,14 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   final List<Widget> _screens = const [
     AttendanceScreen(),
     TeacherHomeContent(),
-    ArcStatsScreen(), // index 2 ✅ CORRECT
+    ArcStatsScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading:
-            false, // ✅ DYNAMIC TITLE — THIS IS THE ONLY CHANGE
-        centerTitle: false,
-
+        automaticallyImplyLeading: false,
         title: Text(
           _currentIndex == 0
               ? "Attendance Management"
@@ -105,7 +100,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart_outlined), // ✅ ORIGINAL STATS ICON
+            icon: Icon(Icons.bar_chart_outlined),
             label: "ARC's Stats",
           ),
         ],
@@ -115,7 +110,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
 }
 
 /// =====================================================================
-/// HOME SCREEN CONTENT
+/// HOME SCREEN CONTENT (RESTORED OLD UI)
 /// =====================================================================
 
 class TeacherHomeContent extends StatelessWidget {
@@ -123,17 +118,47 @@ class TeacherHomeContent extends StatelessWidget {
 
   static const MethodChannel _channel = MethodChannel("student_ble");
 
-  Future<String> _startTeacherBeacon() async {
-    try {
-      final res = await _channel.invokeMethod("startTeacherBeacon");
-      return "Beacon started successfully";
-    } catch (e) {
-      return "Error: $e";
-    }
+  Future<void> _startTeacherBeacon() async {
+    await _channel.invokeMethod("startTeacherBeacon");
+  }
+
+  void _showSessionSelectionDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Select Session Type"),
+        content: const Text("Attendance session duration: 1 hour"),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              showDialog(
+                context: context,
+                builder: (_) =>
+                    const BluetoothTimerDialog(sessionType: "Free Session"),
+              );
+            },
+            child: const Text("Free Session"),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _startTeacherBeacon();
+              showDialog(
+                context: context,
+                builder: (_) =>
+                    const BluetoothTimerDialog(sessionType: "Normal Session"),
+              );
+            },
+            child: const Text("Normal Session"),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showStudentNameDialog(BuildContext context) {
-    final TextEditingController controller = TextEditingController();
+    final controller = TextEditingController();
 
     showDialog(
       context: context,
@@ -148,8 +173,9 @@ class TeacherHomeContent extends StatelessWidget {
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel")),
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
           ElevatedButton(
             onPressed: () async {
               final name = controller.text.trim();
@@ -180,40 +206,6 @@ class TeacherHomeContent extends StatelessWidget {
     );
   }
 
-  void _showSessionSelectionDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Select Session Type"),
-        content: const Text("Choose the type of session for attendance:"),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              showDialog(
-                context: context,
-                builder: (_) =>
-                    const BluetoothTimerDialog(sessionType: "Free Session"),
-              );
-            },
-            child: const Text("Free Session"),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              String msg = await _startTeacherBeacon();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(SnackBar(content: Text(msg)));
-              }
-            },
-            child: const Text("Normal Session"),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -222,16 +214,6 @@ class TeacherHomeContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const SizedBox(height: 40),
-          const Text(
-            AppStrings.appName,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primaryColor,
-            ),
-          ),
-          const Divider(height: 40),
           Center(
             child: GestureDetector(
               onTap: () => _showSessionSelectionDialog(context),
@@ -246,7 +228,7 @@ class TeacherHomeContent extends StatelessWidget {
                       color: AppColors.primaryColor.withOpacity(0.4),
                       blurRadius: 10,
                       spreadRadius: 5,
-                    )
+                    ),
                   ],
                 ),
                 child:
@@ -256,7 +238,7 @@ class TeacherHomeContent extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           const Text(
-            "Enable Bluetooth",
+            "Start Attendance Session",
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 20,
@@ -323,7 +305,7 @@ class StatCard extends StatelessWidget {
 }
 
 /// =====================================================================
-/// BLUETOOTH TIMER DIALOG
+/// BLUETOOTH TIMER DIALOG (1 HOUR)
 /// =====================================================================
 
 class BluetoothTimerDialog extends StatefulWidget {
@@ -335,13 +317,16 @@ class BluetoothTimerDialog extends StatefulWidget {
 }
 
 class _BluetoothTimerDialogState extends State<BluetoothTimerDialog> {
-  int _secondsRemaining = 120;
+  static const int _sessionSeconds = 3600;
+  late int _secondsRemaining;
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _secondsRemaining = _sessionSeconds;
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() {
         if (_secondsRemaining > 0) {
           _secondsRemaining--;
@@ -361,22 +346,23 @@ class _BluetoothTimerDialogState extends State<BluetoothTimerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    int min = _secondsRemaining ~/ 60;
-    int sec = _secondsRemaining % 60;
+    final min = _secondsRemaining ~/ 60;
+    final sec = _secondsRemaining % 60;
 
     return AlertDialog(
-      title: Text("${widget.sessionType} - Bluetooth Beacon"),
+      title: Text("${widget.sessionType} Active"),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text("${widget.sessionType} beacon will run for 2 minutes"),
+          const Text("Attendance session duration: 1 hour"),
           const SizedBox(height: 20),
           Text(
             "${min.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}",
             style: const TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primaryColor),
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primaryColor,
+            ),
           ),
         ],
       ),
@@ -386,8 +372,8 @@ class _BluetoothTimerDialogState extends State<BluetoothTimerDialog> {
             _timer?.cancel();
             Navigator.pop(context);
           },
-          child: const Text("Stop Beacon"),
-        )
+          child: const Text("End Session"),
+        ),
       ],
     );
   }
