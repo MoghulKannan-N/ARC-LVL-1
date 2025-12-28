@@ -29,6 +29,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
   bool leftDone = false;
   bool rightDone = false;
   bool smileDone = false;
+
   int stage = 0;
 
   @override
@@ -45,13 +46,11 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
     );
   }
 
-  // --------------------------------------------------
-  // CAMERA + FACE LOGIC
-  // --------------------------------------------------
   Future<void> _initCamera() async {
     final cameras = await availableCameras();
-    final frontCam =
-        cameras.firstWhere((c) => c.lensDirection == CameraLensDirection.front);
+    final frontCam = cameras.firstWhere(
+      (c) => c.lensDirection == CameraLensDirection.front,
+    );
 
     _controller =
         CameraController(frontCam, ResolutionPreset.medium, enableAudio: false);
@@ -59,6 +58,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
 
     setState(() => _status = "Turn your head LEFT");
 
+    // Start periodic frame checking every 600 ms
     _timer = Timer.periodic(const Duration(milliseconds: 600), (_) {
       if (!_processing) {
         _processing = true;
@@ -95,9 +95,11 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
   }
 
   void _evaluateLiveness(Face face) {
+    // ✅ Use normal yaw (no inversion). MLKit angles are not mirrored.
     final yaw = face.headEulerAngleY ?? 0;
     final smile = face.smilingProbability ?? 0.0;
 
+    // TURN LEFT (user’s left = yaw positive)
     if (!leftDone && yaw > 15) {
       leftDone = true;
       stage = 1;
@@ -105,6 +107,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
       return;
     }
 
+    // TURN RIGHT (user’s right = yaw negative)
     if (leftDone && !rightDone && yaw < -15) {
       rightDone = true;
       stage = 2;
@@ -112,6 +115,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
       return;
     }
 
+    // SMILE
     if (leftDone && rightDone && !smileDone && smile > 0.65) {
       smileDone = true;
       stage = 3;
@@ -119,9 +123,6 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
     }
   }
 
-  // --------------------------------------------------
-  // ATTENDANCE VERIFICATION (NO MONITORING HERE)
-  // --------------------------------------------------
   Future<void> _verifyFace(String path) async {
     final studentName = ApiService.loggedInStudentName;
     if (studentName == null) return;
@@ -154,12 +155,11 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
       return;
     }
 
-    final bool ok = data["recognized"];
-    final double score = data["score"] ?? 0.0;
+    bool ok = data["recognized"];
+    double score = data["score"] ?? 0.0;
 
     if (ok) {
       await ApiService.markAttendance(studentName);
-
       setState(() {
         _status = "🎉 Verified!";
         _result = "Score: ${score.toStringAsFixed(3)}\nMarked PRESENT";
@@ -168,7 +168,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
       await ApiService.markAbsent(studentName);
       setState(() {
         _status = "❌ Not Matched";
-        _result = "Score: ${score.toStringAsFixed(3)}\nTry Again";
+        _result = "Score: ${score.toStringAsFixed(3)}\n Try Again";
       });
     }
   }
@@ -212,9 +212,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
                   _result,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    color: Colors.greenAccent,
-                    fontSize: 16,
-                  ),
+                      color: Colors.greenAccent, fontSize: 16),
                 ),
               ],
             ),

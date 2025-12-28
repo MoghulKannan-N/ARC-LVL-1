@@ -18,47 +18,48 @@ public class AuthService {
     @Autowired
     private TeacherRepository teacherRepo;
 
-    // ------------------ STUDENT LOGIN ---------------------
-    public String loginStudent(String username, String password) {
+    // -----------------------------------------------------
+    // NEW: Validate student & return Student object
+    // -----------------------------------------------------
+    public Student validateStudent(String username, String password) {
 
         Optional<Student> opt = studentRepo.findByUsername(username);
         if (opt.isEmpty()) {
-            return "Invalid credentials";
+            return null;
         }
 
         Student s = opt.get();
 
         if (s.getPassword() != null && s.getPassword().equals(password)) {
-            return "Student login successful";
+            return s;   // return full student object
         }
 
-        return "Invalid credentials";
+        return null;
     }
 
-    // ------------------ TEACHER LOGIN (DB BASED) ---------------------
+    // -----------------------------------------------------
+    // TEACHER LOGIN
+    // -----------------------------------------------------
     public String loginTeacher(String username, String password) {
-
-        System.out.println("Teacher login request: " + username + " / " + password);
 
         Optional<Teacher> opt = teacherRepo.findByUsername(username);
 
         if (opt.isEmpty()) {
-            System.out.println("Teacher not found!");
             return "Invalid credentials";
         }
 
         Teacher t = opt.get();
 
         if (t.getPassword() != null && t.getPassword().equals(password)) {
-            System.out.println("Teacher login success!");
             return "Teacher login successful";
         }
 
-        System.out.println("Password mismatch!");
         return "Invalid credentials";
     }
 
-    // ------------------ CHECK STUDENT ----------------------
+    // -----------------------------------------------------
+    // CHECK STUDENT EXISTS
+    // -----------------------------------------------------
     public boolean doesStudentExist(String name) {
         return studentRepo.findByName(name).isPresent();
     }

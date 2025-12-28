@@ -1,63 +1,82 @@
 # =========================================
-# Line endings normalization
+# Global line ending normalization
 # =========================================
 # Auto-detect text files and normalize to LF in the repo
 * text=auto eol=lf
 
-# Keep specific binary files untouched
-*.png binary
-*.jpg binary
+# Keep binary files untouched
+*.png  binary
+*.jpg  binary
 *.jpeg binary
-*.gif binary
-*.ico binary
-*.pdf binary
-*.mp4 binary
-*.zip binary
-*.jar binary
-*.apk binary
-*.aab binary
-*.db binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.mp4  binary
+*.zip  binary
+*.jar  binary
+*.apk  binary
+*.aab  binary
+*.db   binary
 
 # =========================================
-# Flutter / Dart generated files
+# Flutter / Dart
 # =========================================
-*.dart text eol=lf
-*.yaml text eol=lf
+*.dart     text eol=lf
+*.yaml     text eol=lf
+*.arb      text eol=lf
+*.flutter-plugins-dependencies text eol=lf
 
 # =========================================
-# Android & Java
+# Java / Kotlin / Android
 # =========================================
-*.java text eol=lf
-*.kt text eol=lf
-*.gradle text eol=lf
-*.xml text eol=lf
+*.java     text eol=lf
+*.kt       text eol=lf
+*.gradle   text eol=lf
+*.xml      text eol=lf
 *.properties text eol=lf
-*.md text eol=lf
+*.md       text eol=lf
+*.pro      text eol=lf
+*.aidl     text eol=lf
+*.manifest text eol=lf
 
 # =========================================
-# Python / Flask backend
+# Python (AI / FastAPI / Flask backend)
 # =========================================
-*.py text eol=lf
-*.sh text eol=lf
+*.py       text eol=lf
+*.sh       text eol=lf
+requirements.txt text eol=lf
 
 # =========================================
-# Windows-only scripts
+# Configuration / Web assets
 # =========================================
-*.bat text eol=crlf
-*.cmd text eol=crlf
+*.json     text eol=lf
+*.html     text eol=lf
+*.css      text eol=lf
+*.js       text eol=lf
+*.ts       text eol=lf
+*.vue      text eol=lf
+*.env      text eol=lf
+*.conf     text eol=lf
 
 # =========================================
-# Misc
+# Windows-specific scripts
 # =========================================
-*.json text eol=lf
-*.html text eol=lf
-*.css text eol=lf
-*.js text eol=lf
-*.ts text eol=lf
-*.vue text eol=lf
-*.env text eol=lf
+*.bat      text eol=crlf
+*.cmd      text eol=crlf
+*.ps1      text eol=crlf
 
 # =========================================
-# Git attributes for merges
+# Lock / dependency / merge handling
 # =========================================
 *.lock merge=union
+package-lock.json merge=union
+pubspec.lock merge=union
+poetry.lock merge=union
+yarn.lock merge=union
+
+# =========================================
+# Miscellaneous safe defaults
+# =========================================
+*.txt      text eol=lf
+*.csv      text eol=lf
+*.ini      text eol=lf

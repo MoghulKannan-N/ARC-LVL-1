@@ -1,26 +1,87 @@
-backend/ai_face_service/models
-# IntelliJ / Android Studio
-.idea/
-*.iml
+﻿# =========================================
+# Flutter / Android build files
+# =========================================
+**/build/
+**/.gradle/
+**/.dart_tool/
+**/.kotlin/
+**/.idea/
+**/.android/
+**/.vs/
+**/.vscode/
 
-# VS Code
-.vscode/
+# Flutter specific
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.metadata
+**/.flutter-plugins-dependencies
+**/pubspec.lock
 
-# Java / Maven
-target/
+# =========================================
+# iOS / macOS build files
+# =========================================
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/.symlinks/
+**/ios/Pods/
+**/ios/Runner/GeneratedPluginRegistrant.*
+
+**/macos/Flutter/ephemeral/
+**/macos/Pods/
+**/macos/Runner/GeneratedPluginRegistrant.*
+
+# =========================================
+# Local configuration, caches, and logs
+# =========================================
+*.log
+*.tmp
+*.bak
+local.properties
+.DS_Store
+Thumbs.db
+
+# =========================================
+# Java / Spring Boot backend build files
+# =========================================
+backend/Smart-Attendance/target/
+**/target/
 *.class
 *.jar
 *.war
+*.ear
 
-# Flutter / Dart
-.dart_tool/
-.build/
-build/
+# =========================================
+# Python AI backend (FastAPI / ML)
+# =========================================
+backend/ai_face_service/__pycache__/
+backend/ai_face_service/models/
+backend/ai_face_service/*.pyc
+backend/ai_face_service/.env
 
-# Android
-android/.kotlin/
-*.apk
-*.aab
-
-# Env files
+# =========================================
+# Environment & dependency files
+# =========================================
 .env
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# =========================================
+# Node.js (if any frontend dependencies)
+# =========================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================================
+# System files
+# =========================================
+*.swp
+*.swo
