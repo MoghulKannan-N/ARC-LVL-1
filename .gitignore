@@ -1,1 +1,26 @@
 backend/ai_face_service/models
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub/
+.pub-cache/
+build/
+
+# Android
+android/.gradle/
+android/local.properties
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+
+# CMake / NDK
+.cxx/
+
+# IDE
+.vscode/
+.idea/
+*.iml
