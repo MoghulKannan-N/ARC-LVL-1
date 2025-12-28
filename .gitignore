@@ -1,1 +1,26 @@
 backend/ai_face_service/models
+# IntelliJ / Android Studio
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+
+# Flutter / Dart
+.dart_tool/
+.build/
+build/
+
+# Android
+android/.kotlin/
+*.apk
+*.aab
+
+# Env files
+.env
