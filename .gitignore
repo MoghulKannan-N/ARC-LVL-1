@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿# =========================================
 # Flutter / Android build files
 # =========================================
@@ -9,6 +10,39 @@
 **/.android/
 **/.vs/
 **/.vscode/
+=======
+backend/ai_face_service/models
+<<<<<<< HEAD
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub/
+.pub-cache/
+build/
+
+# Android
+android/.gradle/
+android/local.properties
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+
+# CMake / NDK
+.cxx/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+=======
+# IntelliJ / Android Studio
+.idea/
+*.iml
+>>>>>>> e8d17b5378acce907a94840ec755956fc3f3a7ad
 
 # Flutter specific
 **/.flutter-plugins
@@ -65,6 +99,7 @@ backend/ai_face_service/.env
 # Environment & dependency files
 # =========================================
 .env
+<<<<<<< HEAD
 .venv/
 venv/
 __pycache__/
@@ -85,3 +120,6 @@ yarn-error.log*
 # =========================================
 *.swp
 *.swo
+=======
+>>>>>>> f53a4d5d463113ae1e88fe9d1eae377b6d7c4e73
+>>>>>>> e8d17b5378acce907a94840ec755956fc3f3a7ad
