@@ -143,7 +143,7 @@ class _BluetoothScreenState extends State<BluetoothScreen> {
               // Bluetooth icon button with gradient
               Center(
                 child: GestureDetector(
-                  onTap: () => _handleBluetoothTap(context),
+                  onTap: _handleBluetoothTap,
                   child: Container(
                     width: 120,
                     height: 120,
@@ -185,7 +185,7 @@ class _BluetoothScreenState extends State<BluetoothScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 10),
-              Text(
+              const Text(
                 'Tap the Bluetooth icon to start attendance',
                 style: TextStyle(
                   fontSize: 16,
@@ -205,9 +205,9 @@ class _BluetoothScreenState extends State<BluetoothScreen> {
                     color: Colors.white.withValues(alpha: 0.2),
                   ),
                 ),
-                child: Column(
+                child: const Column(
                   children: [
-                    const Text(
+                    Text(
                       AppStrings.attendance,
                       style: TextStyle(
                         fontSize: 20,
@@ -216,12 +216,12 @@ class _BluetoothScreenState extends State<BluetoothScreen> {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 20),
-                    const CircularProgressIndicator(
+                    SizedBox(height: 20),
+                    CircularProgressIndicator(
                       valueColor:
                           AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
                     ),
-                    const SizedBox(height: 20),
+                    SizedBox(height: 20),
                     Text(
                       AppStrings.waitingBluetooth,
                       style: TextStyle(
