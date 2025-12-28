@@ -1,4 +1,5 @@
 backend/ai_face_service/models
+<<<<<<< HEAD
 # Flutter / Dart
 .dart_tool/
 .packages
@@ -24,3 +25,30 @@ ios/.symlinks/
 .vscode/
 .idea/
 *.iml
+=======
+# IntelliJ / Android Studio
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+
+# Flutter / Dart
+.dart_tool/
+.build/
+build/
+
+# Android
+android/.kotlin/
+*.apk
+*.aab
+
+# Env files
+.env
+>>>>>>> f53a4d5d463113ae1e88fe9d1eae377b6d7c4e73
