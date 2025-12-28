@@ -80,16 +80,19 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     super.build(context);
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
+      backgroundColor: AppColors.teacherGradientLight,
 
-      /// 🔹 BODY WITH FLOATING + IN WHITE AREA
+      /// 🔹 BODY WITH FLOATING + IN ORANGE AREA
       body: Stack(
         children: [
           loading
-              ? const Center(child: CircularProgressIndicator())
+              ? const Center(
+                  child: CircularProgressIndicator(
+                  color: AppColors.teacherPrimary,
+                ))
               : RefreshIndicator(
                   onRefresh: loadStudents,
-                  color: AppColors.primaryColor,
+                  color: AppColors.teacherPrimary,
                   child: students.isEmpty
                       ? const Center(
                           child: Text(
@@ -110,20 +113,22 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                             Color color = Colors.grey;
                             if (status == "PRESENT") color = Colors.green;
                             if (status == "ABSENT") color = Colors.red;
-                            if (status == "LATE") color = Colors.orange;
+                            if (status == "LATE")
+                              color = AppColors.teacherSecondary;
 
                             return Card(
                               elevation: 3,
+                              color: AppColors.teacherSurface,
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12)),
                               child: Padding(
                                 padding: const EdgeInsets.all(14),
                                 child: Row(
                                   children: [
-                                    const CircleAvatar(
+                                    CircleAvatar(
                                       radius: 28,
-                                      backgroundColor: AppColors.primaryColor,
-                                      child: Icon(Icons.person,
+                                      backgroundColor: AppColors.teacherPrimary,
+                                      child: const Icon(Icons.person,
                                           color: Colors.white),
                                     ),
                                     const SizedBox(width: 15),
@@ -151,8 +156,8 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                                       ),
                                     ),
                                     PopupMenuButton<String>(
-                                      icon: const Icon(Icons.edit,
-                                          color: AppColors.primaryColor),
+                                      icon: Icon(Icons.edit,
+                                          color: AppColors.teacherPrimary),
                                       onSelected: (value) =>
                                           changeStatus(name, value),
                                       itemBuilder: (context) => const [
@@ -178,21 +183,39 @@ class _AttendanceScreenState extends State<AttendanceScreen>
                         ),
                 ),
 
-          /// 🔹 BLUE CIRCLE + BUTTON (WHITE AREA)
+          /// 🔹 ORANGE CIRCLE + BUTTON (TEACHER AREA)
           Positioned(
             top: 16,
             right: 16,
-            child: FloatingActionButton(
-              backgroundColor: AppColors.primaryColor,
-              elevation: 4,
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AddStudentScreen()),
-                );
-                await loadStudents();
-              },
-              child: const Icon(Icons.add, color: Colors.white),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    AppColors.teacherGradientStart,
+                    AppColors.teacherGradientEnd
+                  ],
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.teacherPrimary.withValues(alpha: 0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: FloatingActionButton(
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AddStudentScreen()),
+                  );
+                  await loadStudents();
+                },
+                child: const Icon(Icons.add, color: Colors.white),
+              ),
             ),
           ),
         ],

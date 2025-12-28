@@ -7,6 +7,8 @@ import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 
 import 'package:smart_curriculum/services/Student_service/student_api_service.dart';
 import 'package:smart_curriculum/screens/Student_screens/student_face_registration_screen.dart';
+import 'package:smart_curriculum/utils/constants.dart';
+import 'package:smart_curriculum/utils/logger.dart';
 
 class FaceRecognitionScreen extends StatefulWidget {
   const FaceRecognitionScreen({super.key});
@@ -89,7 +91,9 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
         await Future.delayed(const Duration(milliseconds: 300));
         _verifyFace(pic.path);
       }
-    } catch (_) {}
+    } catch (e) {
+      Logger.error("_captureFrame error: $e");
+    }
 
     _processing = false;
   }
@@ -130,45 +134,57 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
 
     final exists = await ApiService.checkFaceExists(studentName);
     if (!exists) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              StudentFaceRegistrationScreen(studentName: studentName),
-        ),
-      );
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                StudentFaceRegistrationScreen(studentName: studentName),
+          ),
+        );
+      }
       return;
     }
 
-    final uri =
-        Uri.parse("${ApiService.faceUrl}/face/recognize?name=$studentName");
+    final uri = Uri.parse("${ApiService.faceUrl}/face/recognize")
+        .replace(queryParameters: {
+      "name": studentName,
+    });
     final req = http.MultipartRequest("POST", uri)
       ..files.add(await http.MultipartFile.fromPath("file", path));
 
-    final res = await req.send();
-    final body = await res.stream.bytesToString();
-    final data = jsonDecode(body);
+    try {
+      final res = await req.send();
+      final body = await res.stream.bytesToString();
+      final data = jsonDecode(body);
 
-    if (data["ok"] != true) {
-      setState(() => _result = "Server Error");
-      return;
-    }
+      if (data["ok"] != true) {
+        setState(() => _result = "Server Error");
+        return;
+      }
 
-    final bool ok = data["recognized"];
-    final double score = data["score"] ?? 0.0;
+      final bool ok = data["recognized"];
+      final double score = data["score"] ?? 0.0;
 
-    if (ok) {
-      await ApiService.markAttendance(studentName);
+      if (ok) {
+        await ApiService.markAttendance(studentName);
 
+        setState(() {
+          _status = "🎉 Verified!";
+          _result = "";
+        });
+      } else {
+        await ApiService.markAbsent(studentName);
+        setState(() {
+          _status = "❌ Not Matched";
+          _result = "";
+        });
+      }
+    } catch (e) {
+      Logger.error("Face recognition error: $e");
       setState(() {
-        _status = "🎉 Verified!";
-        _result = "Score: ${score.toStringAsFixed(3)}\nMarked PRESENT";
-      });
-    } else {
-      await ApiService.markAbsent(studentName);
-      setState(() {
-        _status = "❌ Not Matched";
-        _result = "Score: ${score.toStringAsFixed(3)}\nTry Again";
+        _status = "❌ Recognition Failed";
+        _result = "Network or server error";
       });
     }
   }
@@ -183,43 +199,72 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Face Recognition + Liveness"),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+    return Container(
+      height: MediaQuery.of(context).size.height,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.gradientStart,
+            AppColors.gradientEnd,
+          ],
+        ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _controller == null || !_controller!.value.isInitialized
-                ? const Center(child: CircularProgressIndicator())
-                : CameraPreview(_controller!),
-          ),
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: Colors.black,
-            width: double.infinity,
-            child: Column(
-              children: [
-                Text(
-                  _status,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 18),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  _result,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.greenAccent,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text("Face Recognition + Liveness"),
+          backgroundColor: Colors.transparent,
+          foregroundColor: AppColors.primaryColor,
+          elevation: 0,
+        ),
+        body: Column(
+          children: [
+            Expanded(
+              child: _controller == null || !_controller!.value.isInitialized
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
+                    ))
+                  : ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(20),
+                      ),
+                      child: CameraPreview(_controller!),
+                    ),
             ),
-          ),
-        ],
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.7),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(20),
+                ),
+              ),
+              width: double.infinity,
+              child: Column(
+                children: [
+                  Text(
+                    _status,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _result,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.greenAccent,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

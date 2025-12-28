@@ -16,11 +16,25 @@ class ConfigureSettingsScreen extends StatelessWidget {
       resizeToAvoidBottomInset: true, // ✅ Prevents overflow when keyboard opens
       appBar: AppBar(
         title: const Text("Configure Settings"),
-        backgroundColor: AppColors.primaryColor,
+        backgroundColor: AppColors.teacherPrimary,
         foregroundColor: Colors.white,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.teacherGradientStart,
+                AppColors.teacherGradientEnd
+              ],
+            ),
+          ),
+        ),
       ),
+      backgroundColor: AppColors.teacherGradientLight,
       body: SafeArea(
-        child: SingleChildScrollView( // ✅ Handles smaller screens safely
+        child: SingleChildScrollView(
+          // ✅ Handles smaller screens safely
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -30,7 +44,7 @@ class ConfigureSettingsScreen extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.primaryColor,
+                  color: AppColors.teacherPrimary,
                 ),
               ),
               const SizedBox(height: 20),
@@ -89,9 +103,10 @@ class ConfigureSettingsScreen extends StatelessWidget {
   }) {
     return Card(
       elevation: 3,
+      color: AppColors.teacherSurface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       child: ListTile(
-        leading: Icon(icon, size: 32, color: AppColors.primaryColor),
+        leading: Icon(icon, size: 32, color: AppColors.teacherPrimary),
         title: Text(
           title,
           style: const TextStyle(
@@ -100,7 +115,8 @@ class ConfigureSettingsScreen extends StatelessWidget {
             color: AppColors.textColor,
           ),
         ),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+        trailing: Icon(Icons.arrow_forward_ios,
+            size: 18, color: AppColors.teacherPrimary),
         onTap: onTap,
       ),
     );
@@ -113,19 +129,21 @@ class ConfigureSettingsScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true, // ✅ supports keyboard safely
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.teacherSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
         return Padding(
           padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom + 40, // ✅ lift above bottom
+            bottom: MediaQuery.of(context).viewInsets.bottom +
+                40, // ✅ lift above bottom
             left: 24,
             right: 24,
             top: 24,
           ),
-          child: SingleChildScrollView( // ✅ avoids content overflow
+          child: SingleChildScrollView(
+            // ✅ avoids content overflow
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,

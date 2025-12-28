@@ -70,8 +70,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
     // 🔔 STRONG WARNING NOTIFICATION
     await showAttendanceWarningNotification(
       title: "⚠ Attendance Warning",
-      body:
-          "You exited the attendance app.\n"
+      body: "You exited the attendance app.\n"
           "If you do not return immediately, you may be marked ABSENT.",
     );
   }
@@ -92,18 +91,31 @@ class _StudentHomeScreenState extends State<StudentHomeScreen>
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: AppColors.primaryColor,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.primaryColor,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.gradientStart, AppColors.gradientEnd],
+            ),
+          ),
+        ),
         title: Text(
           index == 0
               ? "Student Profile"
               : index == 1
                   ? "Student Dashboard"
                   : "AI Assistant — Student",
+          style: const TextStyle(
+            color: AppColors.primaryColor,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         actions: [
           IconButton(
             tooltip: 'Logout',
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, color: AppColors.primaryColor),
             onPressed: () async {
               final confirm = await showDialog<bool>(
                 context: context,

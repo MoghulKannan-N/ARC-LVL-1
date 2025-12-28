@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:smart_curriculum/config.dart';
 import 'package:smart_curriculum/services/Student_service/student_api_service.dart';
 import 'package:smart_curriculum/utils/constants.dart';
+import 'package:smart_curriculum/utils/logger.dart';
 
 import 'mini_session_player.dart';
 import 'ai_chatbot_screen.dart';
@@ -75,23 +76,29 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   }
 
   Future<void> _loadProgressAndRoadmap() async {
-    setState(() {
-      loadingRoadmap = true;
-      statusMessage = '';
-    });
+    if (mounted) {
+      setState(() {
+        loadingRoadmap = true;
+        statusMessage = '';
+      });
+    }
 
     if (studentId == null) {
-      setState(() {
-        roadmapItems = [];
-        loadingRoadmap = false;
-      });
+      if (mounted) {
+        setState(() {
+          roadmapItems = [];
+          loadingRoadmap = false;
+        });
+      }
       return;
     }
 
     await _loadProgress();
     await _fetchRoadmap();
 
-    setState(() => loadingRoadmap = false);
+    if (mounted) {
+      setState(() => loadingRoadmap = false);
+    }
   }
 
   Future<void> _loadProgress() async {
@@ -133,19 +140,25 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
           return pa.compareTo(pb);
         });
 
-        setState(() {
-          roadmapItems = list;
-        });
+        if (mounted) {
+          setState(() {
+            roadmapItems = list;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            roadmapItems = [];
+          });
+        }
+      }
+    } catch (e) {
+      Logger.error("fetchRoadmap error: $e");
+      if (mounted) {
         setState(() {
           roadmapItems = [];
         });
       }
-    } catch (e) {
-      print("fetchRoadmap error: $e");
-      setState(() {
-        roadmapItems = [];
-      });
     }
   }
 
@@ -250,40 +263,50 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   Future<void> _onGenerateRoadmap() async {
     if (studentId == null) return;
 
-    setState(() {
-      loading = true;
-      statusMessage = "Asking AI to design your roadmap...";
-    });
+    if (mounted) {
+      setState(() {
+        loading = true;
+        statusMessage = "Asking AI to design your roadmap...";
+      });
+    }
 
     final recommendedTopic = await _getAIRecommendedTopic();
     if (recommendedTopic == null) {
-      setState(() {
-        loading = false;
-        statusMessage = "Unable to determine topic from profile.";
-      });
+      if (mounted) {
+        setState(() {
+          loading = false;
+          statusMessage = "Unable to determine topic from profile.";
+        });
+      }
       return;
     }
 
     final res = await ApiService.generateRoadmap(studentId!, recommendedTopic);
-    setState(() => loading = false);
+    if (mounted) {
+      setState(() => loading = false);
+    }
 
     if (res != null && !res.containsKey('_error')) {
-      setState(() {
-        statusMessage = "Roadmap generated for: $recommendedTopic";
-      });
+      if (mounted) {
+        setState(() {
+          statusMessage = "Roadmap generated for: $recommendedTopic";
+        });
+      }
       await _fetchRoadmap();
     } else {
-      setState(() {
-        statusMessage = "Failed to generate roadmap.";
-      });
+      if (mounted) {
+        setState(() {
+          statusMessage = "Failed to generate roadmap.";
+        });
+      }
     }
   }
 
   Future<String?> _getAIRecommendedTopic() async {
-    final name = ApiService.loggedInStudentName ?? '';
-    if (name.isEmpty) return 'General Study Skills';
+    final studentId = ApiService.loggedInStudentId;
+    if (studentId == null) return 'General Study Skills';
 
-    final profile = await ApiService.fetchFullProfile(name);
+    final profile = await ApiService.fetchFullProfileById(studentId);
     var strength = '';
     var weakness = '';
     var interest = '';
@@ -330,10 +353,12 @@ Return ONLY the topic name without explanation.
   Future<void> _openMiniSession(RoadmapItem topic) async {
     if (studentId == null) return;
 
-    setState(() {
-      loading = true;
-      statusMessage = "Opening session for ${topic.subtopic} ...";
-    });
+    if (mounted) {
+      setState(() {
+        loading = true;
+        statusMessage = "Opening session for ${topic.subtopic} ...";
+      });
+    }
 
     try {
       final sessions = await ApiService.fetchMiniSessions(
@@ -353,23 +378,30 @@ Return ONLY the topic name without explanation.
 
         if (miniId != null) {
           final res = await ApiService.openMiniSession(miniId);
-          setState(() => loading = false);
+          if (mounted) {
+            setState(() => loading = false);
+          }
 
           if (res == null ||
               res.containsKey("_error") ||
-              (res is Map && res.containsKey("detail"))) {
-            setState(() {
-              statusMessage =
-                  "Could not open that session, trying next session...";
-            });
+              res.containsKey("detail")) {
+            if (mounted) {
+              setState(() {
+                statusMessage =
+                    "Could not open that session, trying next session...";
+              });
+            }
             await _openNextFallback();
             return;
           }
 
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => MiniSessionPlayer(session: res)),
-          ).then((_) => _fetchRoadmap());
+          if (mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => MiniSessionPlayer(session: res)),
+            ).then((_) => _fetchRoadmap());
+          }
           return;
         }
       }
@@ -377,36 +409,46 @@ Return ONLY the topic name without explanation.
       // no sessions found -> fallback
       await _openNextFallback();
     } catch (e) {
-      print("_openMiniSession error: $e");
-      setState(() {
-        statusMessage = "Unable to open session.";
-        loading = false;
-      });
+      Logger.error("_openMiniSession error: $e");
+      if (mounted) {
+        setState(() {
+          statusMessage = "Unable to open session.";
+          loading = false;
+        });
+      }
     }
   }
 
   Future<void> _openNextFallback() async {
     final res2 = await ApiService.getNextMiniSession(studentId!);
-    setState(() => loading = false);
+    if (mounted) {
+      setState(() => loading = false);
+    }
 
     if (res2 == null || res2.containsKey('_error')) {
-      setState(() {
-        statusMessage = "Unable to open session.";
-      });
+      if (mounted) {
+        setState(() {
+          statusMessage = "Unable to open session.";
+        });
+      }
       return;
     }
 
     if ((res2['mini_session_id'] ?? 0) == 0) {
-      setState(() {
-        statusMessage = "🎉 All sessions completed!";
-      });
+      if (mounted) {
+        setState(() {
+          statusMessage = "🎉 All sessions completed!";
+        });
+      }
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => MiniSessionPlayer(session: res2)),
-    ).then((_) => _fetchRoadmap());
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => MiniSessionPlayer(session: res2)),
+      ).then((_) => _fetchRoadmap());
+    }
   }
 
   // ------------------- Build UI -------------------
@@ -416,200 +458,245 @@ Return ONLY the topic name without explanation.
     final grouped = groupByParent();
     final nextUp = getNextUpId();
 
-    return SafeArea(
-      child: Scaffold(
-        floatingActionButton: FloatingActionButton(
-          mini: true,
-          onPressed: _openChat,
-          backgroundColor: AppColors.primaryColor,
-          child: const Icon(Icons.question_answer),
+    return Container(
+      height: MediaQuery.of(context).size.height,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.gradientStart,
+            AppColors.gradientEnd,
+          ],
         ),
-        body: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-          child: Column(
-            children: [
-              // Header Row (title + progress)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Row(
-                      children: [
-                        const Icon(Icons.map, size: 22, color: Colors.black87),
-                        const SizedBox(width: 8),
-                        const Text('Learning Path',
-                            style: TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.w700)),
-                      ],
+      ),
+      child: SafeArea(
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          floatingActionButton: FloatingActionButton(
+            mini: true,
+            onPressed: _openChat,
+            backgroundColor: AppColors.primaryColor,
+            foregroundColor: Colors.white,
+            child: const Icon(Icons.question_answer),
+          ),
+          body: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            child: Column(
+              children: [
+                // Header Row (title + progress)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          const Icon(Icons.map,
+                              size: 22, color: AppColors.primaryColor),
+                          const SizedBox(width: 8),
+                          const Text('Learning Path',
+                              style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primaryColor)),
+                        ],
+                      ),
                     ),
-                  ),
 
-                  // Circular progress
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
-                      boxShadow: [
-                        BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
-                            blurRadius: 6)
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 42,
-                          height: 42,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              CircularProgressIndicator(
-                                value: (progress['percentage'] ?? 0) / 100,
-                                strokeWidth: 4,
-                                backgroundColor: Colors.grey.shade200,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    AppColors.primaryColor),
-                              ),
-                              Center(
-                                child: Text("${progress['percentage']}%",
-                                    style: const TextStyle(fontSize: 12)),
-                              )
-                            ],
+                    // Circular progress
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color:
+                                AppColors.primaryColor.withValues(alpha: 0.3)),
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 6)
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 42,
+                            height: 42,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                CircularProgressIndicator(
+                                  value: (progress['percentage'] ?? 0) / 100,
+                                  strokeWidth: 4,
+                                  backgroundColor: Colors.grey.shade300,
+                                  valueColor:
+                                      const AlwaysStoppedAnimation<Color>(
+                                          AppColors.primaryColor),
+                                ),
+                                Center(
+                                  child: Text("${progress['percentage']}%",
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.textColor,
+                                          fontWeight: FontWeight.bold)),
+                                )
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text("${progress['completed']}/${progress['total']}",
-                            style: const TextStyle(fontSize: 14)),
-                      ],
+                          const SizedBox(width: 8),
+                          Text("${progress['completed']}/${progress['total']}",
+                              style: const TextStyle(
+                                  fontSize: 14,
+                                  color: AppColors.textColor,
+                                  fontWeight: FontWeight.w600)),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
 
-              const SizedBox(height: 12),
+                const SizedBox(height: 12),
 
-              // Controls (Generate only)
-              Row(
-                children: [
-                  ElevatedButton(
-                    onPressed: loading ? null : _onGenerateRoadmap,
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryColor),
-                    child: loading
-                        ? const SizedBox(
-                            height: 18,
-                            width: 18,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
-                        : const Text("Generate Roadmap"),
-                  ),
-                  const SizedBox(width: 8),
-                  const Spacer(),
-
-                  // status message with ellipsis to avoid overflow
-                  Flexible(
-                    child: Text(
-                      statusMessage,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      style: const TextStyle(color: Colors.black54),
+                // Controls (Generate only)
+                Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed: loading ? null : _onGenerateRoadmap,
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryColor,
+                          foregroundColor: Colors.white,
+                          elevation: 4),
+                      child: loading
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2))
+                          : const Text("Generate Roadmap",
+                              style: TextStyle(fontWeight: FontWeight.w600)),
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 8),
+                    const Spacer(),
 
-              const SizedBox(height: 12),
+                    // status message with ellipsis to avoid overflow
+                    Flexible(
+                      child: Text(
+                        statusMessage,
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        style: const TextStyle(
+                            color: AppColors.textColor,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
 
-              // Roadmap list
-              Expanded(
-                child: loadingRoadmap
-                    ? Center(
-                        child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              CircularProgressIndicator(),
-                              SizedBox(height: 8),
-                              Text("Loading roadmap...")
-                            ]),
-                      )
-                    : (grouped.isEmpty
-                        ? Center(
-                            child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: const [
-                                  Icon(Icons.map, size: 48, color: Colors.grey),
-                                  SizedBox(height: 8),
-                                  Text(
-                                      "No roadmap yet. Generate one to get started.")
-                                ]),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.only(bottom: 80, top: 6),
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 12),
-                            itemCount: grouped.length,
-                            itemBuilder: (context, i) {
-                              final parent =
-                                  grouped[i]['parent'] as RoadmapItem;
-                              final children =
-                                  grouped[i]['children'] as List<RoadmapItem>;
-                              final isParentOpen = canOpenTopic(parent);
-                              return Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.shade100,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border:
-                                      Border.all(color: Colors.grey.shade200),
-                                  boxShadow: [
-                                    BoxShadow(
-                                        color: Colors.black.withOpacity(0.03),
-                                        blurRadius: 6)
-                                  ],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: 12),
+
+                // Roadmap list
+                Expanded(
+                  child: loadingRoadmap
+                      ? const Center(
+                          child:
+                              Column(mainAxisSize: MainAxisSize.min, children: [
+                            CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppColors.primaryColor)),
+                            SizedBox(height: 8),
+                            Text("Loading roadmap...",
+                                style: TextStyle(color: AppColors.textColor))
+                          ]),
+                        )
+                      : grouped.isEmpty
+                          ? const Center(
+                              child: Column(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    TopicCard(
-                                      topic: parent,
-                                      canOpen: isParentOpen,
-                                      isParent: true,
-                                      isNextUp: nextUp == parent.id,
-                                      onTap: () => _onTopicClick(parent),
-                                    ),
-                                    if (children.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(
-                                            top: 12, left: 6),
-                                        child: Column(
-                                          children: children
-                                              .map((c) => Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                            bottom: 8.0),
-                                                    child: TopicCard(
-                                                      topic: c,
-                                                      canOpen: canOpenTopic(c),
-                                                      isChild: true,
-                                                      isNextUp: nextUp == c.id,
-                                                      onTap: () =>
-                                                          _onTopicClick(c),
-                                                    ),
-                                                  ))
-                                              .toList(),
-                                        ),
+                                    Icon(Icons.map,
+                                        size: 48,
+                                        color: AppColors.subtitleColor),
+                                    SizedBox(height: 8),
+                                    Text(
+                                        "No roadmap yet. Generate one to get started.",
+                                        style: TextStyle(
+                                            color: AppColors.textColor),
+                                        textAlign: TextAlign.center)
+                                  ]),
+                            )
+                          : ListView.separated(
+                              padding:
+                                  const EdgeInsets.only(bottom: 80, top: 6),
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 12),
+                              itemCount: grouped.length,
+                              itemBuilder: (context, i) {
+                                final parent =
+                                    grouped[i]['parent'] as RoadmapItem;
+                                final children =
+                                    grouped[i]['children'] as List<RoadmapItem>;
+                                final isParentOpen = canOpenTopic(parent);
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                        color: AppColors.primaryColor
+                                            .withValues(alpha: 0.2)),
+                                    boxShadow: [
+                                      BoxShadow(
+                                          color: Colors.black
+                                              .withValues(alpha: 0.1),
+                                          blurRadius: 8)
+                                    ],
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      TopicCard(
+                                        topic: parent,
+                                        canOpen: isParentOpen,
+                                        isParent: true,
+                                        isNextUp: nextUp == parent.id,
+                                        onTap: () => _onTopicClick(parent),
                                       ),
-                                  ],
-                                ),
-                              );
-                            },
-                          )),
-              )
-            ],
+                                      if (children.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                              top: 12, left: 6),
+                                          child: Column(
+                                            children: children
+                                                .map((c) => Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                              bottom: 8.0),
+                                                      child: TopicCard(
+                                                        topic: c,
+                                                        canOpen:
+                                                            canOpenTopic(c),
+                                                        isChild: true,
+                                                        isNextUp:
+                                                            nextUp == c.id,
+                                                        onTap: () =>
+                                                            _onTopicClick(c),
+                                                      ),
+                                                    ))
+                                                .toList(),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -669,7 +756,8 @@ class TopicCard extends StatelessWidget {
                     color: statusColor, width: 1.6, style: BorderStyle.solid)
                 : Border.all(color: Colors.transparent),
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6)
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08), blurRadius: 6)
             ],
           ),
           child: Row(

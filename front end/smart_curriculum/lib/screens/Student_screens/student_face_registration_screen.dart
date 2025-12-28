@@ -7,6 +7,7 @@ import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:smart_curriculum/services/Student_service/student_api_service.dart';
 import 'package:smart_curriculum/screens/Student_screens/student_home_screen.dart';
 import 'package:smart_curriculum/utils/constants.dart';
+import 'package:smart_curriculum/utils/logger.dart';
 
 /// Handles face registration for students via ML Kit + API upload.
 class StudentFaceRegistrationScreen extends StatefulWidget {
@@ -33,7 +34,8 @@ class _StudentFaceRegistrationScreenState
     super.initState();
     _initializeCamera();
     _faceDetector = FaceDetector(
-      options: FaceDetectorOptions(enableClassification: true, enableTracking: true),
+      options:
+          FaceDetectorOptions(enableClassification: true, enableTracking: true),
     );
   }
 
@@ -42,7 +44,8 @@ class _StudentFaceRegistrationScreenState
     final front = cameras.firstWhere(
       (cam) => cam.lensDirection == CameraLensDirection.front,
     );
-    _controller = CameraController(front, ResolutionPreset.medium, enableAudio: false);
+    _controller =
+        CameraController(front, ResolutionPreset.medium, enableAudio: false);
     await _controller!.initialize();
     setState(() => _status = "Camera ready. Capture your face to register.");
   }
@@ -98,16 +101,19 @@ class _StudentFaceRegistrationScreenState
 
       await Future.delayed(const Duration(seconds: 2));
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => StudentHomeScreen(studentName: widget.studentName),
-        ),
-      );
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => StudentHomeScreen(studentName: widget.studentName),
+          ),
+        );
+      }
     } catch (e) {
+      Logger.error("Face registration error: $e");
       setState(() {
         _status = "❌ Error occurred";
-        _result = e.toString();
+        _result = "Registration failed. Please try again.";
       });
     } finally {
       setState(() => _isBusy = false);
@@ -144,7 +150,8 @@ class _StudentFaceRegistrationScreenState
               children: [
                 Text(
                   _status,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
@@ -160,7 +167,8 @@ class _StudentFaceRegistrationScreenState
                   label: const Text("Capture & Register"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
                   ),
                 ),
               ],

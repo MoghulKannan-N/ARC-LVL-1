@@ -5,9 +5,14 @@ import 'package:smart_curriculum/utils/constants.dart';
 import 'package:smart_curriculum/screens/Student_screens/face_recognition_screen.dart';
 
 /// Screen where students enable Bluetooth and detect teacher beacon.
-class BluetoothScreen extends StatelessWidget {
+class BluetoothScreen extends StatefulWidget {
   const BluetoothScreen({super.key});
 
+  @override
+  State<BluetoothScreen> createState() => _BluetoothScreenState();
+}
+
+class _BluetoothScreenState extends State<BluetoothScreen> {
   // 🔧 Debug mode flag (set to false for production)
   static const bool debugMode = false;
 
@@ -52,32 +57,40 @@ class BluetoothScreen extends StatelessWidget {
   }
 
   /// Handles Bluetooth button tap
-  Future<void> _handleBluetoothTap(BuildContext context) async {
+  Future<void> _handleBluetoothTap() async {
+    if (!mounted) return;
+
     // ---------------- DEBUG MODE ----------------
     if (debugMode) {
       await _prepareAttendanceSession();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("⚙️ Debug mode: Skipping Bluetooth check"),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("⚙️ Debug mode: Skipping Bluetooth check"),
+          ),
+        );
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const FaceRecognitionScreen(),
-        ),
-      );
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const FaceRecognitionScreen(),
+          ),
+        );
+      }
       return;
     }
 
     // ---------------- NORMAL FLOW ----------------
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("🔍 Scanning for teacher beacon...")),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("🔍 Scanning for teacher beacon...")),
+      );
+    }
 
     final bool found = await _scanForTeacher();
+
+    if (!mounted) return;
 
     if (!found) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -89,108 +102,162 @@ class BluetoothScreen extends StatelessWidget {
     // ✅ Teacher beacon detected → prepare session metadata
     await _prepareAttendanceSession();
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("✅ Teacher beacon found! Starting face recognition..."),
-      ),
-    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("✅ Teacher beacon found! Starting face recognition..."),
+        ),
+      );
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const FaceRecognitionScreen(),
-      ),
-    );
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const FaceRecognitionScreen(),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 40),
-
-          // Bluetooth icon button
-          GestureDetector(
-            onTap: () => _handleBluetoothTap(context),
-            child: Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: AppColors.primaryColor,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryColor.withOpacity(0.4),
-                    blurRadius: 10,
-                    spreadRadius: 5,
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.bluetooth,
-                size: 60,
-                color: Colors.white,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 30),
-          const Text(
-            AppStrings.enableBluetooth,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Tap the Bluetooth icon to start attendance',
-            style: TextStyle(
-              fontSize: 16,
-              color: AppColors.subtitleColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 40),
-
-          const Text(
-            AppStrings.attendance,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-          const CircularProgressIndicator(),
-          const SizedBox(height: 20),
-          const Text(
-            AppStrings.waitingBluetooth,
-            style: TextStyle(
-              fontSize: 16,
-              color: AppColors.subtitleColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
-
-          if (debugMode) ...[
-            const SizedBox(height: 30),
-            const Text(
-              "⚠️ DEBUG MODE ENABLED — Bluetooth check skipped",
-              style: TextStyle(
-                color: Colors.redAccent,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
+    return Container(
+      height: MediaQuery.of(context).size.height,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.gradientStart,
+            AppColors.gradientEnd,
           ],
-        ],
+        ),
+      ),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 40),
+
+              // Bluetooth icon button with gradient
+              Center(
+                child: GestureDetector(
+                  onTap: () => _handleBluetoothTap(context),
+                  child: Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.gradientMid,
+                          AppColors.gradientAccent
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primaryColor.withValues(alpha: 0.3),
+                          blurRadius: 20,
+                          spreadRadius: 5,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.bluetooth,
+                      size: 60,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 30),
+              const Text(
+                AppStrings.enableBluetooth,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Tap the Bluetooth icon to start attendance',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppColors.subtitleColor,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 40),
+
+              // Status Card
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      AppStrings.attendance,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textColor,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 20),
+                    const CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AppColors.primaryColor),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      AppStrings.waitingBluetooth,
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: AppColors.subtitleColor,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+
+              if (debugMode) ...[
+                const SizedBox(height: 30),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red),
+                  ),
+                  child: const Text(
+                    "⚠️ DEBUG MODE ENABLED — Bluetooth check skipped",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
       ),
     );
   }

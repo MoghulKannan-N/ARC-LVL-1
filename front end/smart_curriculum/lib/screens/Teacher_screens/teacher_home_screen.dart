@@ -40,8 +40,20 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                   ? "ARC's Stats"
                   : AppStrings.appName,
         ),
-        backgroundColor: AppColors.primaryColor,
+        backgroundColor: AppColors.teacherPrimary,
         foregroundColor: Colors.white,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.teacherGradientStart,
+                AppColors.teacherGradientEnd
+              ],
+            ),
+          ),
+        ),
         actions: [
           IconButton(
             tooltip: 'Logout',
@@ -87,7 +99,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
-        selectedItemColor: AppColors.primaryColor,
+        selectedItemColor: AppColors.teacherPrimary,
         unselectedItemColor: AppColors.subtitleColor,
         type: BottomNavigationBarType.fixed,
         items: const [
@@ -208,62 +220,127 @@ class TeacherHomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: 40),
-          Center(
-            child: GestureDetector(
-              onTap: () => _showSessionSelectionDialog(context),
-              child: Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryColor,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primaryColor.withOpacity(0.4),
-                      blurRadius: 10,
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child:
-                    const Icon(Icons.bluetooth, size: 60, color: Colors.white),
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            "Start Attendance Session",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textColor,
-            ),
-          ),
-          const SizedBox(height: 40),
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            AppColors.teacherGradientLight,
+            AppColors.teacherSurface,
+          ],
+        ),
+      ),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              StatCard(title: "Total Students", value: "0"),
-              StatCard(title: "Present Today", value: "0"),
+              const SizedBox(height: 20),
+              Center(
+                child: GestureDetector(
+                  onTap: () => _showSessionSelectionDialog(context),
+                  child: Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppColors.teacherGradientStart,
+                          AppColors.teacherGradientEnd
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                              AppColors.teacherPrimary.withValues(alpha: 0.4),
+                          blurRadius: 20,
+                          spreadRadius: 5,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.bluetooth,
+                        size: 60, color: Colors.white),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                "Start Attendance Session",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textColor,
+                ),
+              ),
+              const SizedBox(height: 30),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  TeacherStatCard(title: "Total Students", value: "0"),
+                  TeacherStatCard(title: "Present Today", value: "0"),
+                ],
+              ),
+              const SizedBox(height: 40),
+              TeacherCustomButtons.primaryAction(
+                text: "Configure Settings",
+                onPressed: () => _showStudentNameDialog(context),
+                icon: Icons.settings,
+                width: double.infinity,
+              ),
+              const SizedBox(height: 20),
             ],
           ),
-          const SizedBox(height: 40),
-          ElevatedButton.icon(
-            onPressed: () => _showStudentNameDialog(context),
-            icon: const Icon(Icons.settings, color: Colors.white),
-            label: const Text("Configure Settings"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
+        ),
+      ),
+    );
+  }
+}
+
+/// =====================================================================
+/// TEACHER STATS CARD WITH ORANGE THEME
+/// =====================================================================
+
+class TeacherStatCard extends StatelessWidget {
+  final String title;
+  final String value;
+  const TeacherStatCard({super.key, required this.title, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.teacherSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.teacherPrimary.withValues(alpha: 0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.teacherPrimary.withValues(alpha: 0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(value,
+              style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.teacherPrimary)),
+          const SizedBox(height: 4),
+          Text(title,
+              style: const TextStyle(
+                  fontSize: 14, color: AppColors.subtitleColor)),
         ],
       ),
     );
@@ -271,7 +348,7 @@ class TeacherHomeContent extends StatelessWidget {
 }
 
 /// =====================================================================
-/// STATS CARD
+/// STATS CARD (ORIGINAL FOR STUDENT SIDE)
 /// =====================================================================
 
 class StatCard extends StatelessWidget {
@@ -350,18 +427,31 @@ class _BluetoothTimerDialogState extends State<BluetoothTimerDialog> {
     final sec = _secondsRemaining % 60;
 
     return AlertDialog(
+      backgroundColor: AppColors.teacherSurface,
       title: Text("${widget.sessionType} Active"),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const Text("Attendance session duration: 1 hour"),
           const SizedBox(height: 20),
-          Text(
-            "${min.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}",
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primaryColor,
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColors.teacherGradientLight,
+                  AppColors.teacherGradientLight.withValues(alpha: 0.5),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              "${min.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}",
+              style: const TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: AppColors.teacherPrimary,
+              ),
             ),
           ),
         ],
@@ -372,6 +462,9 @@ class _BluetoothTimerDialogState extends State<BluetoothTimerDialog> {
             _timer?.cancel();
             Navigator.pop(context);
           },
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.teacherPrimary,
+          ),
           child: const Text("End Session"),
         ),
       ],

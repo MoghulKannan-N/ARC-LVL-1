@@ -76,8 +76,7 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('currentRole', 'student');
 
-    final studentName =
-        student_api.ApiService.loggedInStudentName ?? username;
+    final studentName = student_api.ApiService.loggedInStudentName ?? username;
 
     Navigator.pushAndRemoveUntil(
       context,
@@ -90,94 +89,204 @@ class _StudentLoginScreenState extends State<StudentLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenHeight < 700;
+
     return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 80),
-            const Icon(Icons.school,
-                size: 100, color: AppColors.primaryColor),
-            const SizedBox(height: 24),
-            const Text(
-              'ARC Smart Curriculum',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primaryColor,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.gradientStart,
+              AppColors.gradientEnd,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: MediaQuery.of(context).size.height -
+                    MediaQuery.of(context).padding.top -
+                    MediaQuery.of(context).padding.bottom -
+                    32,
               ),
-            ),
-            const SizedBox(height: 48),
-            Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Student Login',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textColor,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(height: isSmallScreen ? 20 : 60),
+
+                  // Logo and Title Section
+                  Container(
+                    padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfacePrimary,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primaryColor.withValues(alpha: 0.1),
+                          blurRadius: 20,
+                          offset: const Offset(0, 6),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      TextFormField(
-                        controller: _usernameController,
-                        decoration: const InputDecoration(
-                          labelText: 'Username',
-                          prefixIcon: Icon(Icons.person),
-                          border: OutlineInputBorder(),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                AppColors.gradientMid,
+                                AppColors.gradientAccent
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Icon(
+                            Icons.school_rounded,
+                            size: isSmallScreen ? 40 : 60,
+                            color: Colors.white,
+                          ),
                         ),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Enter username' : null,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Password',
-                          prefixIcon: Icon(Icons.lock),
-                          border: OutlineInputBorder(),
+                        SizedBox(height: isSmallScreen ? 12 : 16),
+                        Text(
+                          'ARC Smart Curriculum',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 18 : 22,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primaryColor,
+                            letterSpacing: 0.5,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Enter password' : null,
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: _isLoading ? null : _login,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryColor,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        SizedBox(height: isSmallScreen ? 4 : 8),
+                        Text(
+                          'Student Portal',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: isSmallScreen ? 14 : 16,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.subtitleColor,
+                          ),
                         ),
-                        child: _isLoading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white)
-                            : const Text(
-                                'LOGIN',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+
+                  SizedBox(height: isSmallScreen ? 20 : 32),
+
+                  // Login Form
+                  CustomSurfaces.primaryCard(
+                    padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          Text(
+                            'Welcome Back',
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 18 : 20,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textColor,
+                            ),
+                          ),
+                          SizedBox(height: isSmallScreen ? 4 : 8),
+                          Text(
+                            'Sign in to your student account',
+                            style: TextStyle(
+                              fontSize: isSmallScreen ? 12 : 14,
+                              color: AppColors.subtitleColor,
+                            ),
+                          ),
+                          SizedBox(height: isSmallScreen ? 16 : 24),
+                          TextFormField(
+                            controller: _usernameController,
+                            decoration: InputDecoration(
+                              labelText: 'Username',
+                              prefixIcon: Icon(Icons.person_rounded,
+                                  color: AppColors.primaryColor),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: isSmallScreen ? 12 : 16),
+                            ),
+                            validator: (v) => v == null || v.isEmpty
+                                ? 'Enter username'
+                                : null,
+                          ),
+                          SizedBox(height: isSmallScreen ? 12 : 16),
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: true,
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              prefixIcon: Icon(Icons.lock_rounded,
+                                  color: AppColors.primaryColor),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: isSmallScreen ? 12 : 16),
+                            ),
+                            validator: (v) => v == null || v.isEmpty
+                                ? 'Enter password'
+                                : null,
+                          ),
+                          SizedBox(height: isSmallScreen ? 16 : 24),
+                          CustomButtons.primaryAction(
+                            text: 'LOGIN',
+                            onPressed: _login,
+                            isLoading: _isLoading,
+                            icon: Icons.login_rounded,
+                            width: double.infinity,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(height: isSmallScreen ? 16 : 24),
+
+                  // Info Card
+                  Container(
+                    padding: EdgeInsets.all(isSmallScreen ? 12 : 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.infoLight,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.secondaryColor.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline_rounded,
+                          color: AppColors.secondaryColor,
+                          size: isSmallScreen ? 18 : 20,
+                        ),
+                        SizedBox(width: isSmallScreen ? 8 : 12),
+                        Expanded(
+                          child: Text(
+                            'Use your student credentials to access learning materials and track attendance',
+                            style: TextStyle(
+                              color: AppColors.secondaryColor,
+                              fontSize: isSmallScreen ? 11 : 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  SizedBox(height: isSmallScreen ? 16 : 24),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

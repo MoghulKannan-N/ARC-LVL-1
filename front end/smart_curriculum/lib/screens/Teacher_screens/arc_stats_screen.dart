@@ -5,12 +5,11 @@ import 'package:flutter/services.dart';
 class ArcStatsScreen extends StatelessWidget {
   const ArcStatsScreen({super.key});
   static const MethodChannel _overlayChannel = MethodChannel('arc_overlay');
-  
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: AppColors.teacherGradientLight,
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: ListView(
@@ -35,16 +34,16 @@ class ArcStatsScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: const [
-                _ArcStatCard(title: "Avg Attendance", value: "92%"),
-                _ArcStatCard(title: "Class Accuracy", value: "87%"),
+                _TeacherArcStatCard(title: "Avg Attendance", value: "92%"),
+                _TeacherArcStatCard(title: "Class Accuracy", value: "87%"),
               ],
             ),
             const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: const [
-                _ArcStatCard(title: "AI Predictions", value: "120"),
-                _ArcStatCard(title: "Students Monitored", value: "58"),
+                _TeacherArcStatCard(title: "AI Predictions", value: "120"),
+                _TeacherArcStatCard(title: "Students Monitored", value: "58"),
               ],
             ),
 
@@ -76,12 +75,15 @@ class ArcStatsScreen extends StatelessWidget {
             const SizedBox(height: 10),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.teacherSurface,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.teacherPrimary.withValues(alpha: 0.2),
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.shade300,
-                    blurRadius: 5,
+                    color: AppColors.teacherPrimary.withValues(alpha: 0.1),
+                    blurRadius: 8,
                     offset: const Offset(0, 3),
                   ),
                 ],
@@ -98,27 +100,8 @@ class ArcStatsScreen extends StatelessWidget {
             const SizedBox(height: 40),
 
             // ---- Overlay Mode Button ----
-            ElevatedButton.icon(
-              icon: const Icon(Icons.open_in_new, color: Colors.white),
-              label: const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12.0),
-                child: Text(
-                  "OVERLAY MODE",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryColor,
-                minimumSize: const Size(double.infinity, 55),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 4,
-              ),
+            TeacherCustomButtons.primaryAction(
+              text: "OVERLAY MODE",
               onPressed: () async {
                 try {
                   final result =
@@ -158,47 +141,30 @@ class ArcStatsScreen extends StatelessWidget {
                   }
                 }
               },
+              icon: Icons.open_in_new,
+              width: double.infinity,
             ),
 
             const SizedBox(height: 20),
 
             // ---- Assign Work Button ----
-            Center(
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.assignment, color: Colors.white),
-                label: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12.0),
-                  child: Text(
-                    "ASSIGN WORK TO THE STUDENTS",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+            TeacherCustomButtons.secondaryAction(
+              text: "ASSIGN WORK TO THE STUDENTS",
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      "The Work is assigned to the students",
+                      style: TextStyle(fontSize: 16),
                     ),
+                    duration: Duration(seconds: 2),
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
                   ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor,
-                  minimumSize: const Size(double.infinity, 55),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 4,
-                ),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        "The Work is assigned to the students",
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      duration: Duration(seconds: 2),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
-              ),
+                );
+              },
+              icon: Icons.assignment,
+              width: double.infinity,
             ),
           ],
         ),
@@ -250,6 +216,64 @@ Widget _trendTile(String title, String subtitle) {
     margin: const EdgeInsets.symmetric(vertical: 6),
     child: ListTile(
       leading: const Icon(Icons.trending_up, color: AppColors.primaryColor),
+      title: Text(title,
+          style: const TextStyle(
+              fontWeight: FontWeight.bold, color: AppColors.textColor)),
+      subtitle: Text(subtitle,
+          style: const TextStyle(fontSize: 13, color: AppColors.subtitleColor)),
+    ),
+  );
+}
+
+// Teacher-specific components with orange theme
+class _TeacherArcStatCard extends StatelessWidget {
+  final String title;
+  final String value;
+
+  const _TeacherArcStatCard({required this.title, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: AppColors.teacherSurface,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.teacherPrimary.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            children: [
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.teacherPrimary)),
+              const SizedBox(height: 4),
+              Text(title,
+                  style: const TextStyle(
+                      fontSize: 14, color: AppColors.subtitleColor)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Widget _teacherTrendTile(String title, String subtitle) {
+  return Card(
+    elevation: 2,
+    color: AppColors.teacherSurface,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    margin: const EdgeInsets.symmetric(vertical: 6),
+    child: ListTile(
+      leading: Icon(Icons.trending_up, color: AppColors.teacherPrimary),
       title: Text(title,
           style: const TextStyle(
               fontWeight: FontWeight.bold, color: AppColors.textColor)),

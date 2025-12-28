@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:smart_curriculum/services/Teacher_service/teacher_api_service.dart';
 import 'package:smart_curriculum/utils/constants.dart';
 
-
 class AddStudentScreen extends StatefulWidget {
   const AddStudentScreen({super.key});
 
@@ -49,9 +48,22 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Add Student"),
-        backgroundColor: AppColors.primaryColor,
+        backgroundColor: AppColors.teacherPrimary,
         foregroundColor: Colors.white,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppColors.teacherGradientStart,
+                AppColors.teacherGradientEnd
+              ],
+            ),
+          ),
+        ),
       ),
+      backgroundColor: AppColors.teacherGradientLight,
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -60,48 +72,75 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
             const SizedBox(height: 10),
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: "Student Name",
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: AppColors.teacherSurface,
+                prefixIcon: Icon(Icons.person, color: AppColors.teacherPrimary),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: AppColors.teacherPrimary,
+                    width: 2,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: usernameController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: "Username",
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.account_circle),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: AppColors.teacherSurface,
+                prefixIcon:
+                    Icon(Icons.account_circle, color: AppColors.teacherPrimary),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: AppColors.teacherPrimary,
+                    width: 2,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: passwordController,
               obscureText: true,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: "Password",
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.lock),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                filled: true,
+                fillColor: AppColors.teacherSurface,
+                prefixIcon: Icon(Icons.lock, color: AppColors.teacherPrimary),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: AppColors.teacherPrimary,
+                    width: 2,
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: isLoading ? null : _addStudent,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryColor,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              child: isLoading
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text(
-                      "ADD STUDENT",
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+            TeacherCustomButtons.primaryAction(
+              text: "ADD STUDENT",
+              onPressed: isLoading ? () {} : _addStudent,
+              icon: Icons.person_add,
+              isLoading: isLoading,
+              width: double.infinity,
             ),
           ],
         ),

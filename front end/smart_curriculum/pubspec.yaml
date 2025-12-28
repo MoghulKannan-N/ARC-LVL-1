@@ -14,9 +14,6 @@ dependencies:
   # 🌐 Networking
   http: ^0.13.6 # ✅ Compatible with flutter_mjpeg
 
-  # 📡 Bluetooth for attendance sync
-  flutter_bluetooth_serial: ^0.4.0
-
   # 📷 Camera for live photo capture
   camera: ^0.10.5+9
 
